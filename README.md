@@ -1,1 +1,0 @@
-# sspp_openmm
