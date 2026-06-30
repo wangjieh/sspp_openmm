@@ -1,39 +1,38 @@
+python test/run_pretrained_loading_tests.py --checkpoint-dir /mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/ --load-models
 test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) ... /mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py:24: ImportWarning: ``MultiScaleDeformableAttention`` has been moved to ``mmcv.ops.multi_scale_deform_attn``, please change original path ``from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention`` to ``from mmcv.ops.multi_scale_deform_attn import MultiScaleDeformableAttention`` 
   warnings.warn(
-06/30 08:00:50 - mmengine - INFO - Delete `relative_position_index` and `relative_coords_table` since we always re-init these params according to the `window_size`, which might cause unwanted but unworried warnings when loading checkpoint.
-
-  test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS1', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s1.pth') ... FAIL
-  test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS2', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s2.pth') ... FAIL
-
-======================================================================
-FAIL: test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS1', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s1.pth')
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/test/test_pretrained_loading.py", line 157, in test_real_checkpoints_load_into_backbones_when_enabled
-    self.assertEqual(missing, [])
-AssertionError: Lists differ: ['layers.0.attn.qkv.weight', 'layers.0.att[2649 chars]ias'] != []
-
-First list contains 96 additional elements.
-First extra element 0:
-'layers.0.attn.qkv.weight'
-
-Diff is 2989 characters long. Set self.maxDiff to None to see it.
-
-======================================================================
-FAIL: test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS2', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s2.pth')
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/test/test_pretrained_loading.py", line 157, in test_real_checkpoints_load_into_backbones_when_enabled
-    self.assertEqual(missing, [])
-AssertionError: Lists differ: ['layers.0.attn.qkv.weight', 'layers.0.att[2649 chars]ias'] != []
-
-First list contains 96 additional elements.
-First extra element 0:
-'layers.0.attn.qkv.weight'
-
-Diff is 2989 characters long. Set self.maxDiff to None to see it.
+06/30 08:19:24 - mmengine - INFO - Delete `relative_position_index` and `relative_coords_table` since we always re-init these params according to the `window_size`, which might cause unwanted but unworried warnings when loading checkpoint.
+ok
 
 ----------------------------------------------------------------------
-Ran 1 test in 18.102s
+Ran 1 test in 18.152s
 
-FAILED (failures=2)
+
+
+python -m unittest test.test_pretrained_loading -v
+test_backbone_classes_are_registered_modules (test.test_pretrained_loading.TestPluginBackbones.test_backbone_classes_are_registered_modules) ... /mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py:24: ImportWarning: ``MultiScaleDeformableAttention`` has been moved to ``mmcv.ops.multi_scale_deform_attn``, please change original path ``from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention`` to ``from mmcv.ops.multi_scale_deform_attn import MultiScaleDeformableAttention`` 
+  warnings.warn(
+ok
+test_backbones_run_tiny_forward_without_annotations (test.test_pretrained_loading.TestPluginBackbones.test_backbones_run_tiny_forward_without_annotations) ... ok
+test_plugin_packages_are_importable (test.test_pretrained_loading.TestPluginBackbones.test_plugin_packages_are_importable) ... ok
+test_plugin_packages_import_with_only_pythonpath_from_external_cwd (test.test_pretrained_loading.TestPluginBackbones.test_plugin_packages_import_with_only_pythonpath_from_external_cwd) ... ok
+test_readme_documents_linux_pythonpath_usage (test.test_pretrained_loading.TestPluginBackbones.test_readme_documents_linux_pythonpath_usage) ... skipped 'README.md is not present at /mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/README.md.'
+test_vit_layers_keep_skysensepp_attention_checkpoint_names (test.test_pretrained_loading.TestPluginBackbones.test_vit_layers_keep_skysensepp_attention_checkpoint_names) ... ok
+test_real_checkpoint_files_have_expected_keys_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoint_files_have_expected_keys_when_enabled) ... ok
+test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) ... 06/30 08:21:31 - mmengine - INFO - Delete `relative_position_index` and `relative_coords_table` since we always re-init these params according to the `window_size`, which might cause unwanted but unworried warnings when loading checkpoint.
+ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 57.425s
+
+OK (skipped=1)
+
+
+
+python test/run_pretrained_loading_tests.py --checkpoint-dir /mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/ --check-keys 
+test_real_checkpoint_files_have_expected_keys_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoint_files_have_expected_keys_when_enabled) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 5.101s
+
+OK
