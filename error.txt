@@ -1,2 +1,39 @@
-test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled \
-  -v
+test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) ... /mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py:24: ImportWarning: ``MultiScaleDeformableAttention`` has been moved to ``mmcv.ops.multi_scale_deform_attn``, please change original path ``from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention`` to ``from mmcv.ops.multi_scale_deform_attn import MultiScaleDeformableAttention`` 
+  warnings.warn(
+06/30 08:00:50 - mmengine - INFO - Delete `relative_position_index` and `relative_coords_table` since we always re-init these params according to the `window_size`, which might cause unwanted but unworried warnings when loading checkpoint.
+
+  test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS1', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s1.pth') ... FAIL
+  test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS2', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s2.pth') ... FAIL
+
+======================================================================
+FAIL: test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS1', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s1.pth')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/test/test_pretrained_loading.py", line 157, in test_real_checkpoints_load_into_backbones_when_enabled
+    self.assertEqual(missing, [])
+AssertionError: Lists differ: ['layers.0.attn.qkv.weight', 'layers.0.att[2649 chars]ias'] != []
+
+First list contains 96 additional elements.
+First extra element 0:
+'layers.0.attn.qkv.weight'
+
+Diff is 2989 characters long. Set self.maxDiff to None to see it.
+
+======================================================================
+FAIL: test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) (backbone='SkySensePPS2', checkpoint='/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s2.pth')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/test/test_pretrained_loading.py", line 157, in test_real_checkpoints_load_into_backbones_when_enabled
+    self.assertEqual(missing, [])
+AssertionError: Lists differ: ['layers.0.attn.qkv.weight', 'layers.0.att[2649 chars]ias'] != []
+
+First list contains 96 additional elements.
+First extra element 0:
+'layers.0.attn.qkv.weight'
+
+Diff is 2989 characters long. Set self.maxDiff to None to see it.
+
+----------------------------------------------------------------------
+Ran 1 test in 18.102s
+
+FAILED (failures=2)
