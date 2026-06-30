@@ -1,38 +1,4 @@
-python test/run_pretrained_loading_tests.py --checkpoint-dir /mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/ --load-models
-test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) ... /mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py:24: ImportWarning: ``MultiScaleDeformableAttention`` has been moved to ``mmcv.ops.multi_scale_deform_attn``, please change original path ``from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention`` to ``from mmcv.ops.multi_scale_deform_attn import MultiScaleDeformableAttention`` 
-  warnings.warn(
-06/30 08:19:24 - mmengine - INFO - Delete `relative_position_index` and `relative_coords_table` since we always re-init these params according to the `window_size`, which might cause unwanted but unworried warnings when loading checkpoint.
-ok
-
-----------------------------------------------------------------------
-Ran 1 test in 18.152s
-
-
-
-python -m unittest test.test_pretrained_loading -v
-test_backbone_classes_are_registered_modules (test.test_pretrained_loading.TestPluginBackbones.test_backbone_classes_are_registered_modules) ... /mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py:24: ImportWarning: ``MultiScaleDeformableAttention`` has been moved to ``mmcv.ops.multi_scale_deform_attn``, please change original path ``from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention`` to ``from mmcv.ops.multi_scale_deform_attn import MultiScaleDeformableAttention`` 
-  warnings.warn(
-ok
-test_backbones_run_tiny_forward_without_annotations (test.test_pretrained_loading.TestPluginBackbones.test_backbones_run_tiny_forward_without_annotations) ... ok
-test_plugin_packages_are_importable (test.test_pretrained_loading.TestPluginBackbones.test_plugin_packages_are_importable) ... ok
-test_plugin_packages_import_with_only_pythonpath_from_external_cwd (test.test_pretrained_loading.TestPluginBackbones.test_plugin_packages_import_with_only_pythonpath_from_external_cwd) ... ok
-test_readme_documents_linux_pythonpath_usage (test.test_pretrained_loading.TestPluginBackbones.test_readme_documents_linux_pythonpath_usage) ... skipped 'README.md is not present at /mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/README.md.'
-test_vit_layers_keep_skysensepp_attention_checkpoint_names (test.test_pretrained_loading.TestPluginBackbones.test_vit_layers_keep_skysensepp_attention_checkpoint_names) ... ok
-test_real_checkpoint_files_have_expected_keys_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoint_files_have_expected_keys_when_enabled) ... ok
-test_real_checkpoints_load_into_backbones_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoints_load_into_backbones_when_enabled) ... 06/30 08:21:31 - mmengine - INFO - Delete `relative_position_index` and `relative_coords_table` since we always re-init these params according to the `window_size`, which might cause unwanted but unworried warnings when loading checkpoint.
-ok
-
-----------------------------------------------------------------------
-Ran 8 tests in 57.425s
-
-OK (skipped=1)
-
-
-
-python test/run_pretrained_loading_tests.py --checkpoint-dir /mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/ --check-keys 
-test_real_checkpoint_files_have_expected_keys_when_enabled (test.test_pretrained_loading.TestPretrainedCheckpoints.test_real_checkpoint_files_have_expected_keys_when_enabled) ... ok
-
-----------------------------------------------------------------------
-Ran 1 test in 5.101s
-
-OK
+channel,mean,std,pixel_count
+R,72.4085,32.8544,8707102108
+G,89.7399,23.9954,8707102108
+B,69.6123,23.1234,8707102108
