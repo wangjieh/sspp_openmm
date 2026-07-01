@@ -1,20 +1,80 @@
-airplane
-airport
-baseballfield
-basketballcourt
-bridge
-chimney
-dam
-Expressway-Service-area
-Expressway-toll-station
-golffield
-groundtrackfield
-harbor
-overpass
-ship
-stadium
-storagetank
-tenniscourt
-trainstation
-vehicle
-windmill
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 125, in <module>
+[rank3]:     main()
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 121, in main
+[rank3]:     runner.train()
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
+[rank3]:     model = self.train_loop.run()  # type: ignore
+[rank3]:             ^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 105, in run
+[rank3]:     self.runner.val_loop.run()
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 388, in run
+[rank3]:     self.runner.call_hook('after_val_epoch', metrics=metrics)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1839, in call_hook
+[rank3]:     getattr(hook, fn_name)(self, **kwargs)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 361, in after_val_epoch
+[rank3]:     self._save_best_checkpoint(runner, metrics)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 505, in _save_best_checkpoint
+[rank3]:     key_score = metrics[key_indicator]
+[rank3]:                 ~~~~~~~^^^^^^^^^^^^^^^
+[rank3]: KeyError: 'mAP'
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 125, in <module>
+[rank2]:     main()
+[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 121, in main
+[rank2]:     runner.train()
+[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
+[rank2]:     model = self.train_loop.run()  # type: ignore
+[rank2]:             ^^^^^^^^^^^^^^^^^^^^^
+[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 105, in run
+[rank2]:     self.runner.val_loop.run()
+[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 388, in run
+[rank2]:     self.runner.call_hook('after_val_epoch', metrics=metrics)
+[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1839, in call_hook
+[rank2]:     getattr(hook, fn_name)(self, **kwargs)
+[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 361, in after_val_epoch
+[rank2]:     self._save_best_checkpoint(runner, metrics)
+[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 505, in _save_best_checkpoint
+[rank2]:     key_score = metrics[key_indicator]
+[rank2]:                 ~~~~~~~^^^^^^^^^^^^^^^
+[rank2]: KeyError: 'mAP'
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 125, in <module>
+[rank1]:     main()
+[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 121, in main
+[rank1]:     runner.train()
+[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
+[rank1]:     model = self.train_loop.run()  # type: ignore
+[rank1]:             ^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 105, in run
+[rank1]:     self.runner.val_loop.run()
+[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 388, in run
+[rank1]:     self.runner.call_hook('after_val_epoch', metrics=metrics)
+[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1839, in call_hook
+[rank1]:     getattr(hook, fn_name)(self, **kwargs)
+[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 361, in after_val_epoch
+[rank1]:     self._save_best_checkpoint(runner, metrics)
+[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 505, in _save_best_checkpoint
+[rank1]:     key_score = metrics[key_indicator]
+[rank1]:                 ~~~~~~~^^^^^^^^^^^^^^^
+[rank1]: KeyError: 'mAP'
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 125, in <module>
+[rank0]:     main()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmrotate_tools/train.py", line 121, in main
+[rank0]:     runner.train()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
+[rank0]:     model = self.train_loop.run()  # type: ignore
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 105, in run
+[rank0]:     self.runner.val_loop.run()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 388, in run
+[rank0]:     self.runner.call_hook('after_val_epoch', metrics=metrics)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1839, in call_hook
+[rank0]:     getattr(hook, fn_name)(self, **kwargs)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 361, in after_val_epoch
+[rank0]:     self._save_best_checkpoint(runner, metrics)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/hooks/checkpoint_hook.py", line 505, in _save_best_checkpoint
+[rank0]:     key_score = metrics[key_indicator]
+[rank0]:                 ~~~~~~~^^^^^^^^^^^^^^^
+[rank0]: KeyError: 'mAP'
