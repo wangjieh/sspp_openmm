@@ -1,28 +1,27 @@
-07/03 09:37:26 - mmengine - INFO - 
-+-------------------------+-----+-------+--------+-------+
-| class                   | gts | dets  | recall | ap    |
-+-------------------------+-----+-------+--------+-------+
-| airplane                | 0   | 19707 | 0.000  | 0.000 |
-| airport                 | 0   | 6866  | 0.000  | 0.000 |
-| baseballfield           | 0   | 6182  | 0.000  | 0.000 |
-| basketballcourt         | 0   | 12570 | 0.000  | 0.000 |
-| bridge                  | 0   | 12770 | 0.000  | 0.000 |
-| chimney                 | 0   | 3595  | 0.000  | 0.000 |
-| dam                     | 0   | 16449 | 0.000  | 0.000 |
-| Expressway-Service-area | 0   | 5616  | 0.000  | 0.000 |
-| Expressway-toll-station | 0   | 5660  | 0.000  | 0.000 |
-| golffield               | 0   | 6749  | 0.000  | 0.000 |
-| groundtrackfield        | 0   | 22505 | 0.000  | 0.000 |
-| harbor                  | 0   | 19078 | 0.000  | 0.000 |
-| overpass                | 0   | 23716 | 0.000  | 0.000 |
-| ship                    | 0   | 57011 | 0.000  | 0.000 |
-| stadium                 | 0   | 3527  | 0.000  | 0.000 |
-| storagetank             | 0   | 26759 | 0.000  | 0.000 |
-| tenniscourt             | 0   | 35759 | 0.000  | 0.000 |
-| trainstation            | 0   | 11321 | 0.000  | 0.000 |
-| vehicle                 | 0   | 79630 | 0.000  | 0.000 |
-| windmill                | 0   | 11682 | 0.000  | 0.000 |
-+-------------------------+-----+-------+--------+-------+
-| mAP                     |     |       |        | 0.000 |
-+-------------------------+-----+-------+--------+-------+
-07/03 09:37:26 - mmengine - INFO - Epoch(val) [1][734/734]    dior/mAP: 0.0000  dior/AP50: 0.0000  data_time: 0.0039  time: 0.8380
+[ WARN:0@44.066] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34736 (0x87b0) encountered
+[ WARN:0@44.066] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34737 (0x87b1) encountered
+[ WARN:0@44.127] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33550 (0x830e) encountered
+[ WARN:0@44.127] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33922 (0x8482) encountered
+[ WARN:0@44.127] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34735 (0x87af) encountered
+[ WARN:0@44.127] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34736 (0x87b0) encountered
+[ WARN:0@44.127] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34737 (0x87b1) encountered
+[ WARN:0@44.185] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33550 (0x830e) encountered
+[ WARN:0@44.185] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33922 (0x8482) encountered
+[ WARN:0@44.185] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34735 (0x87af) encountered
+[ WARN:0@44.185] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34736 (0x87b0) encountered
+[ WARN:0@44.185] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34737 (0x87b1) encountered
+[ WARN:0@44.338] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33550 (0x830e) encountered
+[ WARN:0@44.338] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33922 (0x8482) encountered
+[ WARN:0@44.338] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34735 (0x87af) encountered
+[ WARN:0@44.338] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34736 (0x87b0) encountered
+[ WARN:0@44.338] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34737 (0x87b1) encountered
+[ WARN:0@44.392] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33550 (0x830e) encountered
+[ WARN:0@44.392] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33922 (0x8482) encountered
+[ WARN:0@44.392] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34735 (0x87af) encountered
+[ WARN:0@44.392] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34736 (0x87b0) encountered
+[ WARN:0@44.392] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34737 (0x87b1) encountered
+[ WARN:0@44.444] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33550 (0x830e) encountered
+[ WARN:0@44.444] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 33922 (0x8482) encountered
+[ WARN:0@44.444] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34735 (0x87af) encountered
+[ WARN:0@44.444] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34736 (0x87b0) encountered
+[ WARN:0@44.444] global grfmt_tiff.cpp:122 TIFF_Warning TIFFReadDirectory: Unknown field with tag 34737 (0x87b1) encountered
