@@ -1,4 +1,2 @@
-[ WARN:0@0.405] global loadsave.cpp:1089 imwrite_ Unsupported depth image for selected encoder is fallbacked to CV_8U.
-[ WARN:0@0.427] global loadsave.cpp:1089 imwrite_ Unsupported depth image for selected encoder is fallbacked to CV_8U.
-[ WARN:0@0.434] global loadsave.cpp:1089 imwrite_ Unsupported depth image for selected encoder is fallbacked to CV_8U.
-[ WARN:0@0.600] global loadsave.cpp:1089 imwrite_ Unsupported depth image for selected encoder is fallbacked to CV_8U.
+/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/dior_r_hr_oriented_rcnn_20e_800x800/best_dota_mAP_epoch_15.pth
+/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/dior_r_hr_oriented_rcnn_20e_800x800/dior_r_hr_oriented_rcnn_20e_800x800.py
