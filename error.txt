@@ -1,1 +1,398 @@
+import argparse
+import math
+from pathlib import Path
 
+from tqdm import tqdm
+
+try:
+    import rasterio
+    from rasterio.windows import Window
+except ImportError:  # pragma: no cover - checked when crop functions run.
+    rasterio = None
+    Window = None
+
+
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
+META_PREFIXES = ("imagesource:", "gsd:")
+
+
+def build_image_map(image_dir):
+    images = {}
+    for path in sorted(Path(image_dir).rglob("*")):
+        if path.is_file() and path.suffix.lower() in IMAGE_EXTS:
+            images.setdefault(path.stem, path)
+    return images
+
+
+def is_meta_line(line):
+    return line.lower().startswith(META_PREFIXES)
+
+
+def polygon_area(points):
+    if len(points) < 3:
+        return 0.0
+    area = 0.0
+    for index, point in enumerate(points):
+        next_point = points[(index + 1) % len(points)]
+        area += point[0] * next_point[1] - next_point[0] * point[1]
+    return abs(area) * 0.5
+
+
+def intersect_with_boundary(start, end, boundary):
+    x1, y1 = start
+    x2, y2 = end
+    axis, value = boundary
+    if axis == "x":
+        if x2 == x1:
+            return value, y1
+        ratio = (value - x1) / (x2 - x1)
+        return value, y1 + ratio * (y2 - y1)
+    if y2 == y1:
+        return x1, value
+    ratio = (value - y1) / (y2 - y1)
+    return x1 + ratio * (x2 - x1), value
+
+
+def clip_polygon_by_boundary(points, inside, boundary):
+    if not points:
+        return []
+    output = []
+    previous = points[-1]
+    previous_inside = inside(previous)
+    for current in points:
+        current_inside = inside(current)
+        if current_inside:
+            if not previous_inside:
+                output.append(intersect_with_boundary(previous, current,
+                                                      boundary))
+            output.append(current)
+        elif previous_inside:
+            output.append(intersect_with_boundary(previous, current, boundary))
+        previous = current
+        previous_inside = current_inside
+    return output
+
+
+def clip_polygon_to_window(points, window):
+    x1, y1, x2, y2 = window
+    clipped = list(points)
+    clipped = clip_polygon_by_boundary(
+        clipped, lambda point: point[0] >= x1, ("x", x1))
+    clipped = clip_polygon_by_boundary(
+        clipped, lambda point: point[0] <= x2, ("x", x2))
+    clipped = clip_polygon_by_boundary(
+        clipped, lambda point: point[1] >= y1, ("y", y1))
+    clipped = clip_polygon_by_boundary(
+        clipped, lambda point: point[1] <= y2, ("y", y2))
+    return clipped
+
+
+def minimum_area_rectangle(points):
+    if len(points) < 3:
+        return []
+
+    best = None
+    for index, point in enumerate(points):
+        next_point = points[(index + 1) % len(points)]
+        dx = next_point[0] - point[0]
+        dy = next_point[1] - point[1]
+        if dx == 0 and dy == 0:
+            continue
+        angle = math.atan2(dy, dx)
+        cos_v = math.cos(-angle)
+        sin_v = math.sin(-angle)
+        rotated = [
+            (x * cos_v - y * sin_v, x * sin_v + y * cos_v)
+            for x, y in points
+        ]
+        xs = [point[0] for point in rotated]
+        ys = [point[1] for point in rotated]
+        min_x, max_x = min(xs), max(xs)
+        min_y, max_y = min(ys), max(ys)
+        area = (max_x - min_x) * (max_y - min_y)
+        if best is None or area < best[0]:
+            rect = [
+                (min_x, min_y),
+                (max_x, min_y),
+                (max_x, max_y),
+                (min_x, max_y),
+            ]
+            inv_cos = math.cos(angle)
+            inv_sin = math.sin(angle)
+            corners = [
+                (x * inv_cos - y * inv_sin, x * inv_sin + y * inv_cos)
+                for x, y in rect
+            ]
+            best = area, corners
+
+    return order_points_clockwise(best[1]) if best is not None else []
+
+
+def order_points_clockwise(points):
+    cx = sum(point[0] for point in points) / len(points)
+    cy = sum(point[1] for point in points) / len(points)
+    ordered = sorted(
+        points,
+        key=lambda point: math.atan2(point[1] - cy, point[0] - cx))
+    top_left_index = min(
+        range(len(ordered)),
+        key=lambda index: (ordered[index][1], ordered[index][0]))
+    return ordered[top_left_index:] + ordered[:top_left_index]
+
+
+def shift_and_clip_points(points, x_offset, y_offset, width, height):
+    shifted = []
+    for x, y in points:
+        shifted.append((
+            min(max(x - x_offset, 0.0), float(width)),
+            min(max(y - y_offset, 0.0), float(height)),
+        ))
+    return shifted
+
+
+def format_float(value):
+    rounded = round(float(value), 2)
+    if abs(rounded - round(rounded)) < 1e-6:
+        return str(int(round(rounded)))
+    return f"{rounded:.2f}".rstrip("0").rstrip(".")
+
+
+def parse_dota_line(line):
+    parts = line.split()
+    if len(parts) < 10:
+        return None
+    try:
+        coords = [float(value) for value in parts[:8]]
+    except ValueError:
+        return None
+    points = list(zip(coords[0::2], coords[1::2]))
+    return points, parts[8], parts[9], parts[10:]
+
+
+def load_annotations(annotation_path):
+    meta_lines = []
+    objects = []
+    if not annotation_path.exists():
+        return meta_lines, objects
+
+    for raw_line in annotation_path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if is_meta_line(line):
+            meta_lines.append(line)
+            continue
+        parsed = parse_dota_line(line)
+        if parsed is not None:
+            objects.append(parsed)
+    return meta_lines, objects
+
+
+def iter_windows(width, height, crop_size, stride):
+    crop_w, crop_h = normalize_pair(crop_size)
+    stride_w, stride_h = normalize_pair(stride)
+    x_starts = build_starts(width, crop_w, stride_w)
+    y_starts = build_starts(height, crop_h, stride_h)
+    for y1 in y_starts:
+        for x1 in x_starts:
+            x2 = min(x1 + crop_w, width)
+            y2 = min(y1 + crop_h, height)
+            yield x1, y1, x2, y2
+
+
+def normalize_pair(value):
+    if isinstance(value, tuple):
+        return value
+    return int(value), int(value)
+
+
+def build_starts(length, crop, stride):
+    if length <= crop:
+        return [0]
+    starts = list(range(0, length - crop + 1, stride))
+    last = length - crop
+    if starts[-1] != last:
+        starts.append(last)
+    return starts
+
+
+def crop_annotation(objects, window, min_area_ratio):
+    x1, y1, x2, y2 = window
+    patch_w = x2 - x1
+    patch_h = y2 - y1
+    kept = []
+    for points, class_name, difficulty, extra in objects:
+        original_area = polygon_area(points)
+        if original_area <= 0:
+            continue
+        clipped = clip_polygon_to_window(points, window)
+        clipped_area = polygon_area(clipped)
+        if clipped_area <= 0:
+            continue
+        if clipped_area / original_area < min_area_ratio:
+            continue
+        rect = minimum_area_rectangle(clipped)
+        if len(rect) != 4:
+            continue
+        rect = shift_and_clip_points(rect, x1, y1, patch_w, patch_h)
+        if polygon_area(rect) <= 0:
+            continue
+        kept.append((rect, class_name, difficulty, extra))
+    return kept
+
+
+def format_dota_object(obj):
+    points, class_name, difficulty, extra = obj
+    coords = []
+    for x, y in points:
+        coords.extend([format_float(x), format_float(y)])
+    return " ".join(coords + [class_name, difficulty] + list(extra))
+
+
+def write_annotation(path, meta_lines, objects):
+    lines = list(meta_lines)
+    lines.extend(format_dota_object(obj) for obj in objects)
+    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
+def require_rasterio():
+    if rasterio is None or Window is None:
+        raise ImportError(
+            "crop_dota_obb.py requires rasterio. Please install rasterio in "
+            "the environment used to run this script.")
+
+
+def write_patch_image(path, data):
+    require_rasterio()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    profile = dict(
+        driver="PNG",
+        width=data.shape[2],
+        height=data.shape[1],
+        count=data.shape[0],
+        dtype=data.dtype,
+    )
+    with rasterio.open(path, "w", **profile) as dataset:
+        dataset.write(data)
+
+
+def crop_one_image(image_path,
+                   annotation_path,
+                   out_image_dir,
+                   out_label_dir,
+                   crop_size,
+                   stride,
+                   min_area_ratio,
+                   keep_empty):
+    require_rasterio()
+    meta_lines, objects = load_annotations(annotation_path)
+    written_images = 0
+    written_boxes = 0
+    with rasterio.open(image_path) as image:
+        width, height = image.width, image.height
+        for window in iter_windows(width, height, crop_size, stride):
+            x1, y1, x2, y2 = window
+            kept_objects = crop_annotation(objects, window, min_area_ratio)
+            if not kept_objects and not keep_empty:
+                continue
+
+            patch_name = f"{image_path.stem}__x{x1}_y{y1}"
+            out_image_path = out_image_dir / f"{patch_name}{image_path.suffix}"
+            out_label_path = out_label_dir / f"{patch_name}.txt"
+            patch_window = Window(x1, y1, x2 - x1, y2 - y1)
+            patch = image.read(window=patch_window)
+            write_patch_image(out_image_path, patch)
+            write_annotation(out_label_path, meta_lines, kept_objects)
+            written_images += 1
+            written_boxes += len(kept_objects)
+    return written_images, written_boxes
+
+
+def crop_dataset(data_root,
+                 out_root,
+                 crop_size=800,
+                 stride=800,
+                 min_area_ratio=0.1,
+                 keep_empty=False):
+    data_root = Path(data_root)
+    out_root = Path(out_root)
+    image_dir = data_root / "images"
+    label_dir = data_root / "labelTxt_obb"
+    out_image_dir = out_root / "images"
+    out_label_dir = out_root / "labelTxt_obb"
+    out_image_dir.mkdir(parents=True, exist_ok=True)
+    out_label_dir.mkdir(parents=True, exist_ok=True)
+
+    image_map = build_image_map(image_dir)
+    processed_images = 0
+    written_images = 0
+    written_boxes = 0
+
+    image_paths = list(image_map.values())
+    for image_path in tqdm(image_paths, desc="Cropping DOTA OBB", unit="image"):
+        processed_images += 1
+        annotation_path = label_dir / f"{image_path.stem}.txt"
+        image_count, box_count = crop_one_image(
+            image_path=image_path,
+            annotation_path=annotation_path,
+            out_image_dir=out_image_dir,
+            out_label_dir=out_label_dir,
+            crop_size=crop_size,
+            stride=stride,
+            min_area_ratio=min_area_ratio,
+            keep_empty=keep_empty,
+        )
+        written_images += image_count
+        written_boxes += box_count
+
+    return {
+        "processed_images": processed_images,
+        "written_images": written_images,
+        "written_boxes": written_boxes,
+    }
+
+
+def parse_pair(value):
+    if "x" not in value:
+        return int(value)
+    left, right = value.lower().split("x", 1)
+    return int(left), int(right)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Crop DOTA OBB images and labelTxt_obb annotations.")
+    parser.add_argument("--data-root", required=True,
+                        help="input root with images/ and labelTxt_obb/")
+    parser.add_argument("--out-root", required=True,
+                        help="output root to write images/ and labelTxt_obb/")
+    parser.add_argument("--crop-size", default="800",
+                        help="crop size as N or WxH, default: 800")
+    parser.add_argument("--stride", default="800",
+                        help="sliding stride as N or WxH, default: 800")
+    parser.add_argument(
+        "--min-area-ratio",
+        type=float,
+        default=0.1,
+        help="keep clipped boxes when clipped_area/original_area >= threshold")
+    parser.add_argument(
+        "--keep-empty",
+        action="store_true",
+        help="write patches even when no object remains after clipping")
+    args = parser.parse_args()
+
+    summary = crop_dataset(
+        data_root=args.data_root,
+        out_root=args.out_root,
+        crop_size=parse_pair(args.crop_size),
+        stride=parse_pair(args.stride),
+        min_area_ratio=args.min_area_ratio,
+        keep_empty=args.keep_empty,
+    )
+    print(f"processed {summary['processed_images']} images")
+    print(f"wrote {summary['written_images']} cropped images")
+    print(f"wrote {summary['written_boxes']} cropped boxes")
+
+
+if __name__ == "__main__":
+    main()
