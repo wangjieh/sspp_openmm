@@ -1,1 +1,47 @@
-20epoch, LR=1e-5, AdamW+MultiStepLR, patch_size=4
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/mmdet_tools/train.py", line 133, in <module>
+    main()
+  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/mmdet_tools/train.py", line 129, in main
+    runner.train()
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
+    self._train_loop = self.build_train_loop(
+                       ^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
+    loop = LOOPS.build(
+           ^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+    return self.build_func(cfg, *args, **kwargs, registry=self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+    obj = obj_cls(**args)  # type: ignore
+          ^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
+    super().__init__(runner, dataloader)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
+    self.dataloader = runner.build_dataloader(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1370, in build_dataloader
+    dataset = DATASETS.build(dataset_cfg)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+    return self.build_func(cfg, *args, **kwargs, registry=self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+    obj = obj_cls(**args)  # type: ignore
+          ^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_mmdet/datasets/dior_hbb_dataset.py", line 92, in __init__
+    super().__init__(**kwargs)
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmdetection/mmdet/datasets/base_det_dataset.py", line 51, in __init__
+    super().__init__(*args, **kwargs)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/dataset/base_dataset.py", line 244, in __init__
+    self.pipeline = Compose(pipeline)
+                    ^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/dataset/base_dataset.py", line 38, in __init__
+    transform = TRANSFORMS.build(transform)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+    return self.build_func(cfg, *args, **kwargs, registry=self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
+    raise KeyError(
+KeyError: 'mmdet.LoadImageFromFile is not in the mmdet::transform registry. Please check whether the value of `mmdet.LoadImageFromFile` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'
