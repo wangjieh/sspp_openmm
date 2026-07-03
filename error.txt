@@ -1,47 +1,28 @@
-Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/mmdet_tools/train.py", line 133, in <module>
-    main()
-  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/mmdet_tools/train.py", line 129, in main
-    runner.train()
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-    self._train_loop = self.build_train_loop(
-                       ^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-    loop = LOOPS.build(
-           ^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-    return self.build_func(cfg, *args, **kwargs, registry=self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-    obj = obj_cls(**args)  # type: ignore
-          ^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-    super().__init__(runner, dataloader)
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-    self.dataloader = runner.build_dataloader(
-                      ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1370, in build_dataloader
-    dataset = DATASETS.build(dataset_cfg)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-    return self.build_func(cfg, *args, **kwargs, registry=self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-    obj = obj_cls(**args)  # type: ignore
-          ^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_mmdet/datasets/dior_hbb_dataset.py", line 92, in __init__
-    super().__init__(**kwargs)
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmdetection/mmdet/datasets/base_det_dataset.py", line 51, in __init__
-    super().__init__(*args, **kwargs)
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/dataset/base_dataset.py", line 244, in __init__
-    self.pipeline = Compose(pipeline)
-                    ^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/dataset/base_dataset.py", line 38, in __init__
-    transform = TRANSFORMS.build(transform)
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-    return self.build_func(cfg, *args, **kwargs, registry=self)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
-    raise KeyError(
-KeyError: 'mmdet.LoadImageFromFile is not in the mmdet::transform registry. Please check whether the value of `mmdet.LoadImageFromFile` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'
+07/03 09:37:26 - mmengine - INFO - 
++-------------------------+-----+-------+--------+-------+
+| class                   | gts | dets  | recall | ap    |
++-------------------------+-----+-------+--------+-------+
+| airplane                | 0   | 19707 | 0.000  | 0.000 |
+| airport                 | 0   | 6866  | 0.000  | 0.000 |
+| baseballfield           | 0   | 6182  | 0.000  | 0.000 |
+| basketballcourt         | 0   | 12570 | 0.000  | 0.000 |
+| bridge                  | 0   | 12770 | 0.000  | 0.000 |
+| chimney                 | 0   | 3595  | 0.000  | 0.000 |
+| dam                     | 0   | 16449 | 0.000  | 0.000 |
+| Expressway-Service-area | 0   | 5616  | 0.000  | 0.000 |
+| Expressway-toll-station | 0   | 5660  | 0.000  | 0.000 |
+| golffield               | 0   | 6749  | 0.000  | 0.000 |
+| groundtrackfield        | 0   | 22505 | 0.000  | 0.000 |
+| harbor                  | 0   | 19078 | 0.000  | 0.000 |
+| overpass                | 0   | 23716 | 0.000  | 0.000 |
+| ship                    | 0   | 57011 | 0.000  | 0.000 |
+| stadium                 | 0   | 3527  | 0.000  | 0.000 |
+| storagetank             | 0   | 26759 | 0.000  | 0.000 |
+| tenniscourt             | 0   | 35759 | 0.000  | 0.000 |
+| trainstation            | 0   | 11321 | 0.000  | 0.000 |
+| vehicle                 | 0   | 79630 | 0.000  | 0.000 |
+| windmill                | 0   | 11682 | 0.000  | 0.000 |
++-------------------------+-----+-------+--------+-------+
+| mAP                     |     |       |        | 0.000 |
++-------------------------+-----+-------+--------+-------+
+07/03 09:37:26 - mmengine - INFO - Epoch(val) [1][734/734]    dior/mAP: 0.0000  dior/AP50: 0.0000  data_time: 0.0039  time: 0.8380
