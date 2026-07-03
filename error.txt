@@ -1,1 +1,270 @@
 
+#!/usr/bin/env python
+"""Export PyTorch .pt/.pth weight structure to JSON."""
+
+from __future__ import annotations
+
+import argparse
+import inspect
+import json
+import math
+import sys
+from pathlib import Path
+from typing import Any
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Export PyTorch .pt/.pth weight structure to a JSON file.",
+    )
+    parser.add_argument("pt_file", help="Input .pt or .pth file.")
+    parser.add_argument("json_file", help="Output .json file.")
+    parser.add_argument(
+        "--state-dict-key",
+        help="Export only this top-level checkpoint key, for example: state_dict.",
+    )
+    parser.add_argument(
+        "--include-values",
+        action="store_true",
+        help="Also write every tensor value. This can create very large JSON files.",
+    )
+    parser.add_argument(
+        "--indent",
+        type=int,
+        default=None,
+        help="Pretty-print JSON with this indentation level, for example: 2.",
+    )
+    parser.add_argument(
+        "--nan-policy",
+        choices=("string", "null", "raw", "error"),
+        default="string",
+        help=(
+            "How to write NaN/Infinity values. "
+            "'string' keeps strict JSON by writing strings; "
+            "'null' writes null; 'raw' writes Python JSON NaN/Infinity; "
+            "'error' stops the export."
+        ),
+    )
+    parser.add_argument(
+        "--unsafe-load",
+        action="store_true",
+        help=(
+            "Use torch.load(..., weights_only=False) when supported. "
+            "Only use this for .pt files you trust."
+        ),
+    )
+    return parser
+
+
+def load_torch():
+    try:
+        import torch  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError(
+            "PyTorch is required to read .pt files. Install it with: pip install torch"
+        ) from exc
+    return torch
+
+
+def load_checkpoint(pt_path: Path, unsafe_load: bool) -> Any:
+    torch = load_torch()
+    kwargs: dict[str, Any] = {"map_location": "cpu"}
+
+    if "weights_only" in inspect.signature(torch.load).parameters:
+        kwargs["weights_only"] = not unsafe_load
+
+    try:
+        return torch.load(pt_path, **kwargs)
+    except Exception as exc:
+        if not unsafe_load and kwargs.get("weights_only") is True:
+            raise RuntimeError(
+                "Could not load with the safer weights_only=True mode. "
+                "If this file is from a trusted source, rerun with --unsafe-load."
+            ) from exc
+        raise
+
+
+def select_export_object(checkpoint: Any, state_dict_key: str | None) -> Any:
+    if state_dict_key is None:
+        return checkpoint
+    if not isinstance(checkpoint, dict):
+        raise TypeError("--state-dict-key can only be used when the checkpoint is a dict.")
+    if state_dict_key not in checkpoint:
+        available = ", ".join(str(key) for key in checkpoint.keys())
+        raise KeyError(
+            f"Key {state_dict_key!r} was not found. Available top-level keys: {available}"
+        )
+    return checkpoint[state_dict_key]
+
+
+def sanitize_float(value: float, nan_policy: str) -> Any:
+    if math.isfinite(value):
+        return value
+    if nan_policy == "string":
+        return str(value)
+    if nan_policy == "null":
+        return None
+    if nan_policy == "raw":
+        return value
+    raise ValueError(f"Encountered non-finite float value: {value!r}")
+
+
+def sanitize_nested_numbers(value: Any, nan_policy: str) -> Any:
+    if isinstance(value, list):
+        return [sanitize_nested_numbers(item, nan_policy) for item in value]
+    if isinstance(value, tuple):
+        return [sanitize_nested_numbers(item, nan_policy) for item in value]
+    if isinstance(value, float):
+        return sanitize_float(value, nan_policy)
+    if isinstance(value, complex):
+        return {
+            "real": sanitize_float(float(value.real), nan_policy),
+            "imag": sanitize_float(float(value.imag), nan_policy),
+        }
+    return value
+
+
+def convert_to_jsonable(
+    value: Any,
+    *,
+    torch_module: Any,
+    include_values: bool,
+    nan_policy: str,
+    stats: dict[str, int],
+) -> Any:
+    if torch_module.is_tensor(value):
+        tensor = value.detach().cpu()
+        stats["tensors"] += 1
+        numel = int(tensor.numel())
+        stats["parameters"] += numel
+        tensor_metadata = {
+            "type": "tensor",
+            "shape": list(tensor.shape),
+            "dtype": str(tensor.dtype),
+            "numel": numel,
+        }
+        if include_values:
+            tensor_metadata["values"] = sanitize_nested_numbers(tensor.tolist(), nan_policy)
+        return tensor_metadata
+
+    if isinstance(value, dict):
+        return {
+            str(key): convert_to_jsonable(
+                item,
+                torch_module=torch_module,
+                include_values=include_values,
+                nan_policy=nan_policy,
+                stats=stats,
+            )
+            for key, item in value.items()
+        }
+
+    if isinstance(value, (list, tuple)):
+        return [
+            convert_to_jsonable(
+                item,
+                torch_module=torch_module,
+                include_values=include_values,
+                nan_policy=nan_policy,
+                stats=stats,
+            )
+            for item in value
+        ]
+
+    if isinstance(value, set):
+        return [
+            convert_to_jsonable(
+                item,
+                torch_module=torch_module,
+                include_values=include_values,
+                nan_policy=nan_policy,
+                stats=stats,
+            )
+            for item in sorted(value, key=repr)
+        ]
+
+    if isinstance(value, bool) or value is None or isinstance(value, str):
+        return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return sanitize_float(value, nan_policy)
+    if isinstance(value, complex):
+        return {
+            "real": sanitize_float(float(value.real), nan_policy),
+            "imag": sanitize_float(float(value.imag), nan_policy),
+        }
+
+    try:
+        import numpy as np  # type: ignore
+    except ImportError:
+        np = None
+
+    if np is not None:
+        if isinstance(value, np.ndarray):
+            return sanitize_nested_numbers(value.tolist(), nan_policy)
+        if isinstance(value, np.generic):
+            return convert_to_jsonable(
+                value.item(),
+                torch_module=torch_module,
+                include_values=include_values,
+                nan_policy=nan_policy,
+                stats=stats,
+            )
+
+    if isinstance(value, Path):
+        return str(value)
+
+    return repr(value)
+
+
+def export_pt_to_json(args: argparse.Namespace) -> dict[str, int]:
+    pt_path = Path(args.pt_file)
+    json_path = Path(args.json_file)
+
+    checkpoint = load_checkpoint(pt_path, unsafe_load=args.unsafe_load)
+    export_object = select_export_object(checkpoint, args.state_dict_key)
+    torch = load_torch()
+    stats = {"tensors": 0, "parameters": 0}
+
+    jsonable = convert_to_jsonable(
+        export_object,
+        torch_module=torch,
+        include_values=args.include_values,
+        nan_policy=args.nan_policy,
+        stats=stats,
+    )
+
+    json_path.parent.mkdir(parents=True, exist_ok=True)
+    with json_path.open("w", encoding="utf-8") as file:
+        json.dump(
+            jsonable,
+            file,
+            ensure_ascii=False,
+            indent=args.indent,
+            allow_nan=args.nan_policy == "raw",
+        )
+        file.write("\n")
+
+    return stats
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    try:
+        stats = export_pt_to_json(args)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    print(
+        f"Exported {stats['tensors']} tensor(s), "
+        f"{stats['parameters']} parameter(s) to {Path(args.json_file)}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
