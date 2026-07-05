@@ -1,261 +1,227 @@
-#!/usr/bin/env python
-"""Convert a DINOv3/ByteDance Swin-Huge checkpoint to MMSeg 1.2.2 Swin keys."""
+"""Compute per-channel normalization statistics for S1 and S2 image folders.
 
-# python "...\convert_dinov3_swin_to_mmseg.py" input.pth output.pth --strip-prefix module --strip-prefix backbone
+The script keeps the input pixel scale unchanged. If your images are stored as
+0..255 values, the reported mean/std are also in the 0..255 scale.
+"""
 
 from __future__ import annotations
 
 import argparse
-import inspect
-import sys
-from collections import OrderedDict
+import json
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Iterable
+
+import numpy as np
+from tqdm import tqdm
 
 
-DEFAULT_DROP_PREFIXES = (
-    "head.",
-    "proj_cls.",
-    "cls_norm.",
-    "local_cls_norm.",
+DEFAULT_EXTENSIONS = (
+    ".tif",
+    ".tiff",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".bmp",
+    ".npy",
+    ".npz",
 )
-DEFAULT_DROP_KEYS = ("masked_embed",)
 
 
-def build_parser() -> argparse.ArgumentParser:
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Convert DINOv3/ByteDance Swin checkpoint keys to MMSegmentation "
-            "1.2.2 SwinTransformer backbone keys."
-        )
+        description="Compute per-channel mean/std for S1 and S2 image folders."
     )
-    parser.add_argument("src", help="Input .pt/.pth checkpoint.")
-    parser.add_argument("dst", help="Output .pth checkpoint for MMSeg.")
+    parser.add_argument("s1_path", type=Path, help="Path to the S1 image folder.")
+    parser.add_argument("s2_path", type=Path, help="Path to the S2 image folder.")
     parser.add_argument(
-        "--state-dict-key",
-        default="auto",
-        help=(
-            "Top-level key containing the state_dict. Use 'auto' to try "
-            "state_dict/model/teacher/student and then the whole checkpoint."
-        ),
+        "--extensions",
+        nargs="+",
+        default=list(DEFAULT_EXTENSIONS),
+        help="Image filename extensions to include.",
     )
     parser.add_argument(
-        "--strip-prefix",
-        action="append",
-        default=[],
-        help=(
-            "Prefix to strip from source keys before conversion. Can be passed "
-            "multiple times, for example --strip-prefix module. "
-            "--strip-prefix backbone."
-        ),
-    )
-    parser.add_argument(
-        "--map-final-norm",
-        default="norm3",
-        help=(
-            "Map source final norm.weight/bias to this MMSeg key prefix. "
-            "Use 'drop' to discard source norm.*. Default: norm3."
-        ),
-    )
-    parser.add_argument(
-        "--wrap-state-dict",
+        "--no-recursive",
         action="store_true",
-        help="Save as {'state_dict': converted} instead of a bare state_dict.",
+        help="Only scan the top-level directory.",
     )
     parser.add_argument(
-        "--unsafe-load",
+        "--no-save",
         action="store_true",
-        help=(
-            "Use torch.load(..., weights_only=False) when supported. "
-            "Only use for checkpoints you trust."
-        ),
+        help="Print statistics without saving JSON files.",
     )
-    return parser
+    parser.add_argument(
+        "--output-name",
+        default="{label}_normalization_stats.json",
+        help="Output JSON filename. You can use {label}, e.g. {label}_stats.json.",
+    )
+    return parser.parse_args()
 
 
-def load_torch():
+def list_images(path: Path, extensions: Iterable[str], recursive: bool) -> list[Path]:
+    extensions = {ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions}
+    if path.is_file():
+        if path.suffix.lower() not in extensions:
+            raise ValueError(f"Unsupported file extension: {path}")
+        return [path]
+    if not path.is_dir():
+        raise FileNotFoundError(f"Path does not exist: {path}")
+
+    pattern = "**/*" if recursive else "*"
+    return sorted(p for p in path.glob(pattern) if p.is_file() and p.suffix.lower() in extensions)
+
+
+def read_image(path: Path) -> np.ndarray:
+    suffix = path.suffix.lower()
+    if suffix == ".npy":
+        return to_chw(np.load(path))
+    if suffix == ".npz":
+        with np.load(path) as data:
+            first_key = data.files[0]
+            return to_chw(data[first_key])
+
+    if suffix in {".tif", ".tiff"}:
+        try:
+            import rasterio
+        except ImportError as exc:
+            raise ImportError("Reading tif/tiff images requires rasterio.") from exc
+
+        with rasterio.open(path) as src:
+            return src.read()
+
     try:
-        import torch  # type: ignore
+        from PIL import Image
+
+        with Image.open(path) as img:
+            return to_chw(np.asarray(img))
     except ImportError as exc:
-        raise RuntimeError(
-            "PyTorch is required to read/write .pt/.pth checkpoints. "
-            "Install it with: pip install torch"
+        raise ImportError(
+            "Reading non-rasterio images requires pillow, or use tif/npy inputs."
         ) from exc
-    return torch
 
 
-def torch_load(path: Path, unsafe_load: bool) -> Any:
-    torch = load_torch()
-    kwargs: dict[str, Any] = {"map_location": "cpu"}
-    if "weights_only" in inspect.signature(torch.load).parameters:
-        kwargs["weights_only"] = not unsafe_load
+def to_chw(array: np.ndarray) -> np.ndarray:
+    array = np.asarray(array)
+    if array.ndim == 2:
+        return array[None, :, :]
+    if array.ndim != 3:
+        raise ValueError(f"Expected a 2D or 3D image array, got shape {array.shape}")
 
-    try:
-        return torch.load(path, **kwargs)
-    except Exception as exc:
-        if kwargs.get("weights_only") is True and not unsafe_load:
-            raise RuntimeError(
-                "Could not load with weights_only=True. If this checkpoint is "
-                "from a trusted source, rerun with --unsafe-load."
-            ) from exc
-        raise
+    first_dim_looks_like_channels = array.shape[0] <= 32 and array.shape[1] > 32 and array.shape[2] > 32
+    if first_dim_looks_like_channels:
+        return array
+    return np.transpose(array, (2, 0, 1))
 
 
-def extract_state_dict(checkpoint: Any, state_dict_key: str) -> Any:
-    if state_dict_key != "auto":
-        if not isinstance(checkpoint, dict):
-            raise TypeError("--state-dict-key requires a dict checkpoint.")
-        if state_dict_key not in checkpoint:
-            available = ", ".join(str(key) for key in checkpoint.keys())
-            raise KeyError(
-                f"Top-level key {state_dict_key!r} not found. Available keys: {available}"
+class RunningChannelStats:
+    def __init__(self) -> None:
+        self.channels: int | None = None
+        self.count: np.ndarray | None = None
+        self.sum: np.ndarray | None = None
+        self.sumsq: np.ndarray | None = None
+        self.min: np.ndarray | None = None
+        self.max: np.ndarray | None = None
+
+    def update(self, image: np.ndarray, path: Path) -> None:
+        image = to_chw(image).astype(np.float64, copy=False)
+        channels = image.shape[0]
+        if self.channels is None:
+            self.channels = channels
+            self.count = np.zeros(channels, dtype=np.int64)
+            self.sum = np.zeros(channels, dtype=np.float64)
+            self.sumsq = np.zeros(channels, dtype=np.float64)
+            self.min = np.full(channels, np.inf, dtype=np.float64)
+            self.max = np.full(channels, -np.inf, dtype=np.float64)
+        elif channels != self.channels:
+            raise ValueError(
+                f"Channel mismatch in {path}: expected {self.channels}, got {channels}"
             )
-        return checkpoint[state_dict_key]
 
-    if not isinstance(checkpoint, dict):
-        return checkpoint
+        assert self.count is not None
+        assert self.sum is not None
+        assert self.sumsq is not None
+        assert self.min is not None
+        assert self.max is not None
 
-    for key in ("state_dict", "model", "teacher", "student"):
-        value = checkpoint.get(key)
-        if isinstance(value, dict):
-            return value
+        for channel_idx in range(channels):
+            values = image[channel_idx].reshape(-1)
+            values = values[np.isfinite(values)]
+            if values.size == 0:
+                continue
+            self.count[channel_idx] += values.size
+            self.sum[channel_idx] += values.sum()
+            self.sumsq[channel_idx] += np.square(values).sum()
+            self.min[channel_idx] = min(self.min[channel_idx], values.min())
+            self.max[channel_idx] = max(self.max[channel_idx], values.max())
 
-    return checkpoint
+    def as_dict(self, label: str, root: Path, num_images: int, recursive: bool) -> dict:
+        if self.channels is None:
+            raise ValueError(f"No valid images found for {label}: {root}")
 
+        assert self.count is not None
+        assert self.sum is not None
+        assert self.sumsq is not None
+        assert self.min is not None
+        assert self.max is not None
 
-def normalize_prefix(prefix: str) -> str:
-    return prefix if prefix.endswith(".") else f"{prefix}."
+        mean = self.sum / self.count
+        variance = self.sumsq / self.count - np.square(mean)
+        variance = np.maximum(variance, 0.0)
+        std = np.sqrt(variance)
 
-
-def strip_source_prefixes(key: str, prefixes: Iterable[str]) -> str:
-    for prefix in prefixes:
-        normalized = normalize_prefix(prefix)
-        if key.startswith(normalized):
-            return key[len(normalized) :]
-    return key
-
-
-def correct_unfold_reduction_order(x: Any) -> Any:
-    out_channel, in_channel = x.shape
-    x = x.reshape(out_channel, 4, in_channel // 4)
-    x = swap_axes(x[:, [0, 2, 1, 3], :], 1, 2).reshape(out_channel, in_channel)
-    return x
-
-
-def correct_unfold_norm_order(x: Any) -> Any:
-    in_channel = x.shape[0]
-    x = x.reshape(4, in_channel // 4)
-    x = swap_axes(x[[0, 2, 1, 3], :], 0, 1).reshape(in_channel)
-    return x
-
-
-def swap_axes(x: Any, dim0: int, dim1: int) -> Any:
-    if hasattr(x, "swapaxes"):
-        return x.swapaxes(dim0, dim1)
-    return x.transpose(dim0, dim1)
-
-
-def should_drop_key(key: str) -> bool:
-    return key in DEFAULT_DROP_KEYS or key.startswith(DEFAULT_DROP_PREFIXES)
-
-
-def convert_key_and_value(
-    key: str,
-    value: Any,
-    *,
-    map_final_norm: str,
-) -> tuple[str | None, Any]:
-    if should_drop_key(key):
-        return None, value
-
-    if key.startswith("norm."):
-        if map_final_norm == "drop":
-            return None, value
-        suffix = key[len("norm.") :]
-        return f"{map_final_norm}.{suffix}", value
-
-    new_key = key
-    new_value = value
-
-    if key.startswith("layers."):
-        if "attn." in new_key:
-            new_key = new_key.replace("attn.", "attn.w_msa.")
-        elif "mlp.fc1." in new_key:
-            new_key = new_key.replace("mlp.fc1.", "ffn.layers.0.0.")
-        elif "mlp.fc2." in new_key:
-            new_key = new_key.replace("mlp.fc2.", "ffn.layers.1.")
-        elif "mlp." in new_key:
-            new_key = new_key.replace("mlp.", "ffn.")
-
-        if "downsample.reduction." in new_key:
-            new_value = correct_unfold_reduction_order(new_value)
-        elif "downsample.norm." in new_key:
-            new_value = correct_unfold_norm_order(new_value)
-
-        new_key = new_key.replace("layers", "stages", 1)
-
-    elif key.startswith("patch_embed."):
-        new_key = new_key.replace("proj", "projection", 1)
-
-    return new_key, new_value
+        return {
+            "label": label,
+            "path": str(root.resolve()),
+            "recursive": recursive,
+            "num_images": num_images,
+            "channels": self.channels,
+            "count": self.count.tolist(),
+            "mean": mean.tolist(),
+            "std": std.tolist(),
+            "min": self.min.tolist(),
+            "max": self.max.tolist(),
+            "pixel_scale": "unchanged; 0..255 inputs produce 0..255 mean/std",
+        }
 
 
-def convert_state_dict(
-    state_dict: dict[str, Any],
-    *,
-    strip_prefixes: Iterable[str] = (),
-    map_final_norm: str = "norm3",
-) -> tuple[OrderedDict[str, Any], dict[str, int]]:
-    converted = OrderedDict()
-    report = {"input": 0, "converted": 0, "skipped": 0}
+def compute_stats(label: str, path: Path, args: argparse.Namespace) -> dict:
+    recursive = not args.no_recursive
+    image_paths = list_images(path, args.extensions, recursive)
+    if not image_paths:
+        raise ValueError(f"No images found for {label}: {path}")
 
-    for raw_key, value in state_dict.items():
-        report["input"] += 1
-        key = strip_source_prefixes(str(raw_key), strip_prefixes)
-        new_key, new_value = convert_key_and_value(
-            key, value, map_final_norm=map_final_norm
-        )
-        if new_key is None:
-            report["skipped"] += 1
-            continue
-        converted[new_key] = new_value
-        report["converted"] += 1
+    stats = RunningChannelStats()
+    for image_path in tqdm(image_paths, desc=f"{label}", unit="img"):
+        stats.update(read_image(image_path), image_path)
 
-    return converted, report
+    result = stats.as_dict(label=label, root=path, num_images=len(image_paths), recursive=recursive)
+    if not args.no_save:
+        output_dir = path.parent if path.is_file() else path
+        output_path = output_dir / args.output_name.format(label=label)
+        output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        result["output_path"] = str(output_path.resolve())
+    return result
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    src = Path(args.src)
-    dst = Path(args.dst)
+def print_summary(result: dict) -> None:
+    print(f"\n[{result['label']}] {result['path']}")
+    print(f"images: {result['num_images']}")
+    print(f"channels: {result['channels']}")
+    print(f"mean: {result['mean']}")
+    print(f"std:  {result['std']}")
+    print(f"min:  {result['min']}")
+    print(f"max:  {result['max']}")
+    if "output_path" in result:
+        print(f"saved: {result['output_path']}")
 
-    try:
-        checkpoint = torch_load(src, unsafe_load=args.unsafe_load)
-        state_dict = extract_state_dict(checkpoint, args.state_dict_key)
-        if not isinstance(state_dict, dict):
-            raise TypeError("The extracted state_dict is not a dict-like object.")
 
-        converted, report = convert_state_dict(
-            state_dict,
-            strip_prefixes=args.strip_prefix,
-            map_final_norm=args.map_final_norm,
-        )
-
-        torch = load_torch()
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        output = {"state_dict": converted} if args.wrap_state_dict else converted
-        torch.save(output, dst)
-    except Exception as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        return 1
-
-    print(
-        f"Converted {report['converted']} key(s), skipped {report['skipped']} "
-        f"key(s), wrote {dst}"
-    )
-    return 0
+def main() -> None:
+    args = parse_args()
+    s1_result = compute_stats("s1", args.s1_path, args)
+    s2_result = compute_stats("s2", args.s2_path, args)
+    print_summary(s1_result)
+    print_summary(s2_result)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
+
