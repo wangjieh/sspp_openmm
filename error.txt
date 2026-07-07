@@ -1,227 +1,37 @@
-"""Compute per-channel normalization statistics for S1 and S2 image folders.
-
-The script keeps the input pixel scale unchanged. If your images are stored as
-0..255 values, the reported mean/std are also in the 0..255 scale.
-"""
-
-from __future__ import annotations
-
-import argparse
-import json
-from pathlib import Path
-from typing import Iterable
-
-import numpy as np
-from tqdm import tqdm
-
-
-DEFAULT_EXTENSIONS = (
-    ".tif",
-    ".tiff",
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".bmp",
-    ".npy",
-    ".npz",
-)
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Compute per-channel mean/std for S1 and S2 image folders."
-    )
-    parser.add_argument("s1_path", type=Path, help="Path to the S1 image folder.")
-    parser.add_argument("s2_path", type=Path, help="Path to the S2 image folder.")
-    parser.add_argument(
-        "--extensions",
-        nargs="+",
-        default=list(DEFAULT_EXTENSIONS),
-        help="Image filename extensions to include.",
-    )
-    parser.add_argument(
-        "--no-recursive",
-        action="store_true",
-        help="Only scan the top-level directory.",
-    )
-    parser.add_argument(
-        "--no-save",
-        action="store_true",
-        help="Print statistics without saving JSON files.",
-    )
-    parser.add_argument(
-        "--output-name",
-        default="{label}_normalization_stats.json",
-        help="Output JSON filename. You can use {label}, e.g. {label}_stats.json.",
-    )
-    return parser.parse_args()
-
-
-def list_images(path: Path, extensions: Iterable[str], recursive: bool) -> list[Path]:
-    extensions = {ext.lower() if ext.startswith(".") else f".{ext.lower()}" for ext in extensions}
-    if path.is_file():
-        if path.suffix.lower() not in extensions:
-            raise ValueError(f"Unsupported file extension: {path}")
-        return [path]
-    if not path.is_dir():
-        raise FileNotFoundError(f"Path does not exist: {path}")
-
-    pattern = "**/*" if recursive else "*"
-    return sorted(p for p in path.glob(pattern) if p.is_file() and p.suffix.lower() in extensions)
-
-
-def read_image(path: Path) -> np.ndarray:
-    suffix = path.suffix.lower()
-    if suffix == ".npy":
-        return to_chw(np.load(path))
-    if suffix == ".npz":
-        with np.load(path) as data:
-            first_key = data.files[0]
-            return to_chw(data[first_key])
-
-    if suffix in {".tif", ".tiff"}:
-        try:
-            import rasterio
-        except ImportError as exc:
-            raise ImportError("Reading tif/tiff images requires rasterio.") from exc
-
-        with rasterio.open(path) as src:
-            return src.read()
-
-    try:
-        from PIL import Image
-
-        with Image.open(path) as img:
-            return to_chw(np.asarray(img))
-    except ImportError as exc:
-        raise ImportError(
-            "Reading non-rasterio images requires pillow, or use tif/npy inputs."
-        ) from exc
-
-
-def to_chw(array: np.ndarray) -> np.ndarray:
-    array = np.asarray(array)
-    if array.ndim == 2:
-        return array[None, :, :]
-    if array.ndim != 3:
-        raise ValueError(f"Expected a 2D or 3D image array, got shape {array.shape}")
-
-    first_dim_looks_like_channels = array.shape[0] <= 32 and array.shape[1] > 32 and array.shape[2] > 32
-    if first_dim_looks_like_channels:
-        return array
-    return np.transpose(array, (2, 0, 1))
-
-
-class RunningChannelStats:
-    def __init__(self) -> None:
-        self.channels: int | None = None
-        self.count: np.ndarray | None = None
-        self.sum: np.ndarray | None = None
-        self.sumsq: np.ndarray | None = None
-        self.min: np.ndarray | None = None
-        self.max: np.ndarray | None = None
-
-    def update(self, image: np.ndarray, path: Path) -> None:
-        image = to_chw(image).astype(np.float64, copy=False)
-        channels = image.shape[0]
-        if self.channels is None:
-            self.channels = channels
-            self.count = np.zeros(channels, dtype=np.int64)
-            self.sum = np.zeros(channels, dtype=np.float64)
-            self.sumsq = np.zeros(channels, dtype=np.float64)
-            self.min = np.full(channels, np.inf, dtype=np.float64)
-            self.max = np.full(channels, -np.inf, dtype=np.float64)
-        elif channels != self.channels:
-            raise ValueError(
-                f"Channel mismatch in {path}: expected {self.channels}, got {channels}"
-            )
-
-        assert self.count is not None
-        assert self.sum is not None
-        assert self.sumsq is not None
-        assert self.min is not None
-        assert self.max is not None
-
-        for channel_idx in range(channels):
-            values = image[channel_idx].reshape(-1)
-            values = values[np.isfinite(values)]
-            if values.size == 0:
-                continue
-            self.count[channel_idx] += values.size
-            self.sum[channel_idx] += values.sum()
-            self.sumsq[channel_idx] += np.square(values).sum()
-            self.min[channel_idx] = min(self.min[channel_idx], values.min())
-            self.max[channel_idx] = max(self.max[channel_idx], values.max())
-
-    def as_dict(self, label: str, root: Path, num_images: int, recursive: bool) -> dict:
-        if self.channels is None:
-            raise ValueError(f"No valid images found for {label}: {root}")
-
-        assert self.count is not None
-        assert self.sum is not None
-        assert self.sumsq is not None
-        assert self.min is not None
-        assert self.max is not None
-
-        mean = self.sum / self.count
-        variance = self.sumsq / self.count - np.square(mean)
-        variance = np.maximum(variance, 0.0)
-        std = np.sqrt(variance)
-
-        return {
-            "label": label,
-            "path": str(root.resolve()),
-            "recursive": recursive,
-            "num_images": num_images,
-            "channels": self.channels,
-            "count": self.count.tolist(),
-            "mean": mean.tolist(),
-            "std": std.tolist(),
-            "min": self.min.tolist(),
-            "max": self.max.tolist(),
-            "pixel_scale": "unchanged; 0..255 inputs produce 0..255 mean/std",
-        }
-
-
-def compute_stats(label: str, path: Path, args: argparse.Namespace) -> dict:
-    recursive = not args.no_recursive
-    image_paths = list_images(path, args.extensions, recursive)
-    if not image_paths:
-        raise ValueError(f"No images found for {label}: {path}")
-
-    stats = RunningChannelStats()
-    for image_path in tqdm(image_paths, desc=f"{label}", unit="img"):
-        stats.update(read_image(image_path), image_path)
-
-    result = stats.as_dict(label=label, root=path, num_images=len(image_paths), recursive=recursive)
-    if not args.no_save:
-        output_dir = path.parent if path.is_file() else path
-        output_path = output_dir / args.output_name.format(label=label)
-        output_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
-        result["output_path"] = str(output_path.resolve())
-    return result
-
-
-def print_summary(result: dict) -> None:
-    print(f"\n[{result['label']}] {result['path']}")
-    print(f"images: {result['num_images']}")
-    print(f"channels: {result['channels']}")
-    print(f"mean: {result['mean']}")
-    print(f"std:  {result['std']}")
-    print(f"min:  {result['min']}")
-    print(f"max:  {result['max']}")
-    if "output_path" in result:
-        print(f"saved: {result['output_path']}")
-
-
-def main() -> None:
-    args = parse_args()
-    s1_result = compute_stats("s1", args.s1_path, args)
-    s2_result = compute_stats("s2", args.s2_path, args)
-    print_summary(s1_result)
-    print_summary(s2_result)
-
-
-if __name__ == "__main__":
-    main()
-
+ Traceback (most recent call last):
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmseg_tools/train.py", line 106, in <module>
+[rank0]:     main()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmseg_tools/train.py", line 102, in main
+[rank0]:     runner.train()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
+[rank0]:     model = self.train_loop.run()  # type: ignore
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 98, in run
+[rank0]:     self.run_epoch()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 115, in run_epoch
+[rank0]:     self.run_iter(idx, data_batch)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 131, in run_iter
+[rank0]:     outputs = self.runner.model.train_step(
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/wrappers/distributed.py", line 123, in train_step
+[rank0]:     optim_wrapper.update_params(parsed_loss)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/optim/optimizer/optimizer_wrapper.py", line 196, in update_params
+[rank0]:     self.backward(loss)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/optim/optimizer/optimizer_wrapper.py", line 220, in backward
+[rank0]:     loss.backward(**kwargs)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/_tensor.py", line 647, in backward
+[rank0]:     torch.autograd.backward(
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/function.py", line 311, in apply
+[rank0]:     return user_fn(self, *args)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 319, in backward
+[rank0]:     torch.autograd.backward(outputs_with_grad, args_with_grad)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/__init__.py", line 354, in backward
+[rank0]:     _engine_run_backward(
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
+[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
