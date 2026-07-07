@@ -1,3 +1,3 @@
-/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/svdt_hr_upernet_20e_512x512/20260701_094800/20260701_094800.log
-/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/dior_r_hr_oriented_rcnn_20e_800x800/20260702_120150/20260702_120150.log
-/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/dior_hr_faster_rcnn_20e_800x800/20260703_103026/20260703_103026.log
+/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_frozen_50e/best_mIoU_epoch_27.pth
+/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_frozen_50e/swin_huge_fpn_upernet_frozen_50e.py
+/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_frozen_50e/20260707_110013/20260707_110013.log
