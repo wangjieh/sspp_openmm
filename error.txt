@@ -1,37 +1,388 @@
- Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmseg_tools/train.py", line 106, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./mmseg_tools/train.py", line 102, in main
-[rank0]:     runner.train()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
-[rank0]:     model = self.train_loop.run()  # type: ignore
-[rank0]:             ^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 98, in run
-[rank0]:     self.run_epoch()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 115, in run_epoch
-[rank0]:     self.run_iter(idx, data_batch)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 131, in run_iter
-[rank0]:     outputs = self.runner.model.train_step(
-[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/wrappers/distributed.py", line 123, in train_step
-[rank0]:     optim_wrapper.update_params(parsed_loss)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/optim/optimizer/optimizer_wrapper.py", line 196, in update_params
-[rank0]:     self.backward(loss)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/optim/optimizer/optimizer_wrapper.py", line 220, in backward
-[rank0]:     loss.backward(**kwargs)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/_tensor.py", line 647, in backward
-[rank0]:     torch.autograd.backward(
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/__init__.py", line 354, in backward
-[rank0]:     _engine_run_backward(
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
-[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/function.py", line 311, in apply
-[rank0]:     return user_fn(self, *args)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/checkpoint.py", line 319, in backward
-[rank0]:     torch.autograd.backward(outputs_with_grad, args_with_grad)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/__init__.py", line 354, in backward
-[rank0]:     _engine_run_backward(
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/graph.py", line 829, in _engine_run_backward
-[rank0]:     return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+"""Image-only SkySense++ backbones for OpenMMLab downstream tasks.
+
+The release checkpoints were produced by pretraining modules that also
+consume annotation tokens. These classes expose ordinary image-only
+``forward(x)`` backbones while keeping the release checkpoint parameter names
+that are needed for weight loading.
+"""
+
+from __future__ import annotations
+
+import importlib
+import math
+from typing import Sequence
+
+from ..._registry import MODELS
+
+
+_IMPORT_ERROR = None
+
+try:
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    import torch.utils.checkpoint as cp
+    from mmcv.cnn import build_norm_layer
+    from mmcv.cnn.bricks.transformer import FFN, MultiheadAttention, PatchEmbed
+    from mmengine.model import ModuleList
+except ImportError as exc:  # pragma: no cover - exercised on machines without deps.
+    _IMPORT_ERROR = exc
+else:
+    try:
+        _mmpretrain_base = importlib.import_module(
+            "mmpretrain.models.backbones.base_backbone")
+        _mmpretrain_utils = importlib.import_module("mmpretrain.models.utils")
+        _mmpretrain_swin = importlib.import_module(
+            "mmpretrain.models.backbones.swin_transformer_v2")
+    except ImportError:
+        try:
+            _mmpretrain_base = importlib.import_module(
+                "mmcls.models.backbones.base_backbone")
+            _mmpretrain_utils = importlib.import_module("mmcls.models.utils")
+            _mmpretrain_swin = importlib.import_module(
+                "mmcls.models.backbones.swin_transformer_v2")
+        except ImportError as exc:  # pragma: no cover
+            _IMPORT_ERROR = exc
+        else:
+            BaseBackbone = _mmpretrain_base.BaseBackbone
+            SwinTransformerV2 = _mmpretrain_swin.SwinTransformerV2
+            resize_pos_embed = _mmpretrain_utils.resize_pos_embed
+    else:
+        BaseBackbone = _mmpretrain_base.BaseBackbone
+        SwinTransformerV2 = _mmpretrain_swin.SwinTransformerV2
+        resize_pos_embed = _mmpretrain_utils.resize_pos_embed
+
+
+def _missing_dependency_message() -> str:
+    return (
+        "SkySense++ backbones require PyTorch, MMCV, MMEngine, and "
+        "MMPRETRAIN 1.x. The current import error was: "
+        f"{_IMPORT_ERROR!r}")
+
+
+if _IMPORT_ERROR is not None:
+
+    class _MissingDependencyBackbone:
+
+        def __init__(self, *args, **kwargs):
+            raise ImportError(_missing_dependency_message())
+
+    @MODELS.register_module()
+    class SkySensePPHR(_MissingDependencyBackbone):
+        """Placeholder used when OpenMMLab dependencies are unavailable."""
+
+    @MODELS.register_module()
+    class SkySensePPS1(_MissingDependencyBackbone):
+        """Placeholder used when OpenMMLab dependencies are unavailable."""
+
+    @MODELS.register_module()
+    class SkySensePPS2(_MissingDependencyBackbone):
+        """Placeholder used when OpenMMLab dependencies are unavailable."""
+
+else:
+
+    def _to_2tuple(value):
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+            return tuple(value)
+        return (value, value)
+
+
+    def _normalize_out_indices(out_indices, num_layers: int):
+        if isinstance(out_indices, int):
+            out_indices = (out_indices, )
+        normalized = []
+        for index in out_indices:
+            if index < 0:
+                index = num_layers + index
+            if index < 0 or index >= num_layers:
+                raise ValueError(
+                    f"out_indices must be in [0, {num_layers - 1}], got "
+                    f"{out_indices}.")
+            normalized.append(index)
+        return tuple(normalized)
+
+
+    class _AttentionBlock(nn.Module):
+        """Wrapper that preserves checkpoint keys as ``attn.attn.*``."""
+
+        def __init__(self, embed_dims: int, num_heads: int):
+            super().__init__()
+            self.attn = nn.MultiheadAttention(
+                embed_dims, num_heads=num_heads, batch_first=True)
+
+        def forward(self, x):
+            out, _ = self.attn(x, x, x, need_weights=False)
+            return out
+
+
+    class _ProjMHSA(nn.Module):
+        """Projection + MHSA adapter kept for HR checkpoint compatibility."""
+
+        def __init__(self, in_channels: int, inner_channels: int,
+                     num_heads: int):
+            super().__init__()
+            self.proj_in = nn.Linear(in_channels, inner_channels)
+            self.attn = _AttentionBlock(inner_channels, num_heads)
+            self.proj_out = nn.Linear(inner_channels, in_channels)
+
+        def forward(self, x):
+            return self.proj_out(self.attn(self.proj_in(x)))
+
+
+    class _SkySensePPTransformerEncoderLayer(nn.Module):
+        """ViT encoder layer with SkySense++ checkpoint-compatible keys."""
+
+        def __init__(self,
+                     embed_dims,
+                     num_heads,
+                     feedforward_channels,
+                     drop_rate=0.,
+                     attn_drop_rate=0.,
+                     drop_path_rate=0.,
+                     num_fcs=2,
+                     qkv_bias=True,
+                     act_cfg=dict(type="GELU"),
+                     norm_cfg=dict(type="LN"),
+                     batch_first=True,
+                     with_cp=False):
+            super().__init__()
+            self.norm1_name, norm1 = build_norm_layer(
+                norm_cfg, embed_dims, postfix=1)
+            self.add_module(self.norm1_name, norm1)
+            self.attn = MultiheadAttention(
+                embed_dims=embed_dims,
+                num_heads=num_heads,
+                attn_drop=attn_drop_rate,
+                proj_drop=drop_rate,
+                batch_first=batch_first,
+                bias=qkv_bias)
+
+            self.norm2_name, norm2 = build_norm_layer(
+                norm_cfg, embed_dims, postfix=2)
+            self.add_module(self.norm2_name, norm2)
+            self.ffn = FFN(
+                embed_dims=embed_dims,
+                feedforward_channels=feedforward_channels,
+                num_fcs=num_fcs,
+                ffn_drop=drop_rate,
+                dropout_layer=dict(type="DropPath", drop_prob=drop_path_rate)
+                if drop_path_rate > 0 else None,
+                act_cfg=act_cfg)
+            self.with_cp = with_cp
+
+        @property
+        def norm1(self):
+            return getattr(self, self.norm1_name)
+
+        @property
+        def norm2(self):
+            return getattr(self, self.norm2_name)
+
+        def forward(self, x):
+
+            def _inner_forward(x):
+                x = self.attn(self.norm1(x), identity=x)
+                x = self.ffn(self.norm2(x), identity=x)
+                return x
+
+            if self.with_cp and x.requires_grad:
+                # Non-reentrant checkpointing is friendlier to DDP backward.
+                try:
+                    return cp.checkpoint(
+                        _inner_forward, x, use_reentrant=False)
+                except TypeError as exc:
+                    if "use_reentrant" not in str(exc):
+                        raise
+                    return cp.checkpoint(_inner_forward, x)
+            return _inner_forward(x)
+
+
+    class _SkySensePPViT(BaseBackbone):
+        """ViT backbone used by the SkySense++ S1/S2 release checkpoints."""
+
+        arch_zoo = {
+            "large": {
+                "embed_dims": 1024,
+                "num_layers": 24,
+                "num_heads": 16,
+                "feedforward_channels": 4096,
+            },
+        }
+
+        def __init__(self,
+                     arch="large",
+                     img_size=16,
+                     patch_size=4,
+                     in_channels=10,
+                     out_indices=-1,
+                     drop_rate=0.,
+                     drop_path_rate=0.,
+                     qkv_bias=True,
+                     norm_cfg=dict(type="LN"),
+                     final_norm=False,
+                     interpolate_mode="bicubic",
+                     vocabulary_size=65,
+                     vocabulary_weight_size=16,
+                     with_cp=False,
+                     init_cfg=None):
+            super().__init__(init_cfg=init_cfg)
+            if isinstance(arch, str):
+                if arch not in self.arch_zoo:
+                    raise ValueError(f"Unsupported SkySense++ ViT arch: {arch}")
+                arch_settings = self.arch_zoo[arch]
+            else:
+                arch_settings = arch
+
+            self.embed_dims = arch_settings["embed_dims"]
+            self.num_layers = arch_settings["num_layers"]
+            self.num_heads = arch_settings["num_heads"]
+            self.feedforward_channels = arch_settings["feedforward_channels"]
+            self.interpolate_mode = interpolate_mode
+            self.final_norm = final_norm
+            self.out_indices = _normalize_out_indices(out_indices,
+                                                       self.num_layers)
+
+            self.patch_embed = PatchEmbed(
+                in_channels=in_channels,
+                input_size=img_size,
+                embed_dims=self.embed_dims,
+                conv_type="Conv2d",
+                kernel_size=patch_size,
+                stride=patch_size,
+            )
+            self.patch_resolution = self.patch_embed.init_out_size
+            num_patches = self.patch_resolution[0] * self.patch_resolution[1]
+
+            self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dims))
+            self.pos_embed = nn.Parameter(
+                torch.zeros(1, num_patches, self.embed_dims))
+            self.mask_token = nn.Parameter(torch.zeros(1, 1, self.embed_dims))
+            self.vocabulary_token = nn.Parameter(
+                torch.zeros(vocabulary_size, self.embed_dims))
+            self.vocabulary_weight = nn.Parameter(
+                torch.zeros(1, vocabulary_weight_size))
+            self.drop_after_pos = nn.Dropout(p=drop_rate)
+
+            dpr = np.linspace(0, drop_path_rate, self.num_layers)
+            self.layers = ModuleList()
+            for i in range(self.num_layers):
+                self.layers.append(
+                    _SkySensePPTransformerEncoderLayer(
+                        embed_dims=self.embed_dims,
+                        num_heads=self.num_heads,
+                        feedforward_channels=self.feedforward_channels,
+                        drop_rate=drop_rate,
+                        drop_path_rate=float(dpr[i]),
+                        qkv_bias=qkv_bias,
+                        norm_cfg=norm_cfg,
+                        with_cp=with_cp))
+
+            if final_norm:
+                self.norm1_name, norm1 = build_norm_layer(
+                    norm_cfg, self.embed_dims, postfix=1)
+                self.add_module(self.norm1_name, norm1)
+
+            self._register_load_state_dict_pre_hook(self._prepare_pos_embed)
+
+        @property
+        def norm1(self):
+            return getattr(self, self.norm1_name)
+
+        def _prepare_pos_embed(self, state_dict, prefix, *args, **kwargs):
+            name = prefix + "pos_embed"
+            if name not in state_dict:
+                return
+            ckpt_pos_embed = state_dict[name]
+            if tuple(ckpt_pos_embed.shape) == tuple(self.pos_embed.shape):
+                return
+            ckpt_num_patches = ckpt_pos_embed.shape[1]
+            ckpt_size = int(math.sqrt(ckpt_num_patches))
+            if ckpt_size * ckpt_size != ckpt_num_patches:
+                return
+            state_dict[name] = resize_pos_embed(
+                ckpt_pos_embed,
+                src_shape=(ckpt_size, ckpt_size),
+                dst_shape=self.patch_resolution,
+                mode=self.interpolate_mode,
+                num_extra_tokens=0)
+
+        def forward(self, x):
+            x, patch_resolution = self.patch_embed(x)
+            x = x + resize_pos_embed(
+                self.pos_embed,
+                self.patch_resolution,
+                patch_resolution,
+                mode=self.interpolate_mode,
+                num_extra_tokens=0)
+            x = self.drop_after_pos(x)
+
+            outs = []
+            for i, layer in enumerate(self.layers):
+                x = layer(x)
+                if i == self.num_layers - 1 and self.final_norm:
+                    x = self.norm1(x)
+                if i in self.out_indices:
+                    b, _, c = x.shape
+                    out = x.reshape(b, *patch_resolution, c)
+                    out = out.permute(0, 3, 1, 2).contiguous()
+                    outs.append(out)
+            return tuple(outs)
+
+
+    @MODELS.register_module()
+    class SkySensePPHR(SwinTransformerV2):
+        """SkySense++ HR SwinV2-H backbone."""
+
+        def __init__(self,
+                     arch="huge",
+                     img_size=64,
+                     patch_size=4,
+                     in_channels=3,
+                     window_size=8,
+                     out_indices=(0, 1, 2, 3),
+                     vocabulary_size=65,
+                     vocabulary_weight_size=16,
+                     with_msl_params=True,
+                     with_attn_adapters=True,
+                     **kwargs):
+            out_indices = _normalize_out_indices(out_indices, 4)
+            kwargs.setdefault("pad_small_map", True)
+            super().__init__(
+                arch=arch,
+                img_size=img_size,
+                patch_size=patch_size,
+                in_channels=in_channels,
+                window_size=window_size,
+                out_indices=out_indices,
+                **kwargs)
+            if with_msl_params:
+                self.mask_token = nn.Parameter(
+                    torch.zeros(1, 1, self.embed_dims))
+                self.vocabulary_token = nn.Parameter(
+                    torch.zeros(vocabulary_size, self.embed_dims))
+                self.vocabulary_weight = nn.Parameter(
+                    torch.zeros(1, vocabulary_weight_size))
+            if with_attn_adapters:
+                self.attn1 = _ProjMHSA(352, 256, num_heads=8)
+                self.attn2 = _ProjMHSA(704, 512, num_heads=8)
+                self.attn3 = _ProjMHSA(1408, 1024, num_heads=16)
+                self.norm_attn = nn.LayerNorm(1408)
+
+
+    @MODELS.register_module()
+    class SkySensePPS1(_SkySensePPViT):
+        """SkySense++ Sentinel-1 SAR backbone with 2 input channels."""
+
+        def __init__(self, in_channels=2, **kwargs):
+            super().__init__(in_channels=in_channels, **kwargs)
+
+
+    @MODELS.register_module()
+    class SkySensePPS2(_SkySensePPViT):
+        """SkySense++ Sentinel-2 multispectral backbone with 10 channels."""
+
+        def __init__(self, in_channels=10, **kwargs):
+            super().__init__(in_channels=in_channels, **kwargs)
+
+
+__all__ = ["SkySensePPHR", "SkySensePPS1", "SkySensePPS2"]
