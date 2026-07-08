@@ -1,97 +1,67 @@
-[rank0]: Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./opencd_tools/train.py", line 104, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./opencd_tools/train.py", line 100, in main
-[rank0]:     runner.train()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
-[rank0]:     model = self.train_loop.run()  # type: ignore
-[rank0]:             ^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 98, in run
-[rank0]:     self.run_epoch()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 115, in run_epoch
-[rank0]:     self.run_iter(idx, data_batch)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 131, in run_iter
-[rank0]:     outputs = self.runner.model.train_step(
-[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/wrappers/distributed.py", line 121, in train_step
-[rank0]:     losses = self._run_forward(data, mode='loss')
-[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/wrappers/distributed.py", line 161, in _run_forward
-[rank0]:     results = self(**data, mode=mode)
-[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1648, in forward
-[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
-[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1474, in _run_ddp_forward
-[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/base.py", line 94, in forward
-[rank0]:     return self.loss(inputs, data_samples)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/open-cd-olmoearth/opencd/models/change_detectors/siamencoder_decoder.py", line 186, in loss
-[rank0]:     x = self.extract_feat(inputs)
-[rank0]:         ^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/change_detectors/bright_absdiff_encoder_decoder.py", line 69, in extract_feat
-[rank0]:     opt_feats = self.opt_backbone(opt_x)
-[rank0]:                 ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/backbones/skysensepp_backbones.py", line 314, in forward
-[rank0]:     x = layer(x)
-[rank0]:         ^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/backbones/skysensepp_backbones.py", line 190, in forward
-[rank0]:     return _inner_forward(x)
-[rank0]:            ^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/backbones/skysensepp_backbones.py", line 184, in _inner_forward
-[rank0]:     x = self.attn(self.norm1(x), identity=x)
-[rank0]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 395, in new_func
-[rank0]:     output = old_func(*args, **kwargs)
-[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py", line 542, in forward
-[rank0]:     out = self.attn(
-[rank0]:           ^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/activation.py", line 1380, in forward
-[rank0]:     attn_output, attn_output_weights = F.multi_head_attention_forward(
-[rank0]:                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/functional.py", line 6448, in multi_head_attention_forward
-[rank0]:     attn_output_weights = softmax(attn_output_weights, dim=-1)
-[rank0]:                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/functional.py", line 2137, in softmax
-[rank0]:     ret = input.softmax(dim)
-[rank0]:           ^^^^^^^^^^^^^^^^^^
-[rank0]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.00 GiB. GPU 0 has a total capacity of 79.25 GiB of which 710.94 MiB is free. Process 764972 has 78.55 GiB memory in use. Of the allocated memory 75.98 GiB is allocated by PyTorch, and 1.49 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
+import os
+import rasterio
+from rasterio.windows import Window
+from tqdm import tqdm
+
+# ========== 配置参数 ==========
+data_root = "/mnt/htzzb2/EO_test/datasets/BRIGHT"
+input_folders = ["pre-event-mapped", "post-event-mapped", "target"]
+output_folders = ["pre-event_slices", "post-event_slices", "target_slices"]
+win_size = 128    # 切片窗口大小
+stride = 126      # 滑动步长
+# ==============================
+
+# 批量创建输出目录
+for folder in output_folders:
+    os.makedirs(os.path.join(data_root, folder), exist_ok=True)
+
+def slice_tif(input_path, output_dir, win_size, stride):
+    """单张影像滑窗切片，保留地理信息，文件名带原图坐标"""
+    with rasterio.open(input_path) as src:
+        height, width = src.height, src.width
+        profile = src.profile
+
+        # 计算行、列方向的窗口起始坐标，自动补全边缘
+        row_starts = list(range(0, height - win_size + 1, stride))
+        if row_starts[-1] + win_size < height:
+            row_starts.append(height - win_size)
+        
+        col_starts = list(range(0, width - win_size + 1, stride))
+        if col_starts[-1] + win_size < width:
+            col_starts.append(width - win_size)
+
+        file_stem = os.path.splitext(os.path.basename(input_path))[0]
+        # 遍历所有窗口切片
+        for row_off in row_starts:
+            for col_off in col_starts:
+                # 构造读取窗口，计算对应地理变换
+                window = Window(col_off, row_off, win_size, win_size)
+                win_data = src.read(window=window)
+                win_transform = src.window_transform(window)
+
+                # 更新输出配置
+                out_profile = profile.copy()
+                out_profile.update(
+                    height=win_size,
+                    width=win_size,
+                    transform=win_transform
+                )
+
+                # 文件名加入原图坐标：x=列偏移, y=行偏移
+                out_name = f"{file_stem}_x{col_off}_y{row_off}.tif"
+                out_path = os.path.join(output_dir, out_name)
+                with rasterio.open(out_path, 'w', **out_profile) as dst:
+                    dst.write(win_data)
+
+# 以第一个文件夹为基准获取所有tif，确保三文件夹文件一一对应
+base_dir = os.path.join(data_root, input_folders[0])
+tif_list = [f for f in os.listdir(base_dir) if f.lower().endswith('.tif')]
+
+# 批量处理，带进度条
+for tif_name in tqdm(tif_list, desc="影像切片进度"):
+    for in_dir, out_dir in zip(input_folders, output_folders):
+        in_path = os.path.join(data_root, in_dir, tif_name)
+        if os.path.isfile(in_path):
+            slice_tif(in_path, os.path.join(data_root, out_dir), win_size, stride)
+
+print("所有文件夹滑窗切片完成！")
