@@ -1,5 +1,4 @@
-/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_backbone0.1_50e/best_mIoU_epoch_46.pth
-/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_backbone0.1_50e/swin_huge_fpn_upernet_full_backbone0.1_50e.py
-
-/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_50e/best_mIoU_epoch_32.pth
-/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_50e/swin_huge_fpn_upernet_full_50e.py
+mmengine - WARNING - Failed to search registry with scope "opencd" in the "optimizer wrapper constructor" registry tree. As a workaround, the current "optimizer wrapper constructor" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
+07/08 14:10:59 - mmengine - WARNING - Failed to search registry with scope "opencd" in the "optimizer" registry tree. As a workaround, the current "optimizer" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
+07/08 14:10:59 - mmengine - WARNING - Failed to search registry with scope "opencd" in the "optim_wrapper" registry tree. As a workaround, the current "optim_wrapper" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
+07/08 14:10:59 - mmengine - WARNING - Failed to search registry with scope "opencd" in the "parameter scheduler" registry tree. As a workaround, the current "parameter scheduler" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
