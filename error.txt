@@ -1,5 +1,5 @@
 /mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_backbone0.1_50e/best_mIoU_epoch_46.pth
-/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_backbone0.1_50e/20260707_191123/20260707_191123.log
+/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_backbone0.1_50e/swin_huge_fpn_upernet_full_backbone0.1_50e.py
 
 /mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_50e/best_mIoU_epoch_32.pth
-/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_50e/20260707_140944/20260707_140944.log
+/mnt/htzzb2/EO_test/wj1/Ningbo_2m_work_dirs/swin_huge_fpn_upernet_full_50e/swin_huge_fpn_upernet_full_50e.py
