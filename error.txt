@@ -1,4 +1,97 @@
-mmengine - WARNING - Failed to search registry with scope "opencd" in the "optimizer wrapper constructor" registry tree. As a workaround, the current "optimizer wrapper constructor" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
-07/08 14:10:59 - mmengine - WARNING - Failed to search registry with scope "opencd" in the "optimizer" registry tree. As a workaround, the current "optimizer" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
-07/08 14:10:59 - mmengine - WARNING - Failed to search registry with scope "opencd" in the "optim_wrapper" registry tree. As a workaround, the current "optim_wrapper" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
-07/08 14:10:59 - mmengine - WARNING - Failed to search registry with scope "opencd" in the "parameter scheduler" registry tree. As a workaround, the current "parameter scheduler" registry in "mmengine" is used to build instance. This may cause unexpected failure when running the built modules. Please check whether "opencd" is a correct scope, or whether the registry is initialized.
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./opencd_tools/train.py", line 104, in <module>
+[rank0]:     main()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/./opencd_tools/train.py", line 100, in main
+[rank0]:     runner.train()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
+[rank0]:     model = self.train_loop.run()  # type: ignore
+[rank0]:             ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 98, in run
+[rank0]:     self.run_epoch()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 115, in run_epoch
+[rank0]:     self.run_iter(idx, data_batch)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 131, in run_iter
+[rank0]:     outputs = self.runner.model.train_step(
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/wrappers/distributed.py", line 121, in train_step
+[rank0]:     losses = self._run_forward(data, mode='loss')
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/wrappers/distributed.py", line 161, in _run_forward
+[rank0]:     results = self(**data, mode=mode)
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1648, in forward
+[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank0]:          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1474, in _run_ddp_forward
+[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/base.py", line 94, in forward
+[rank0]:     return self.loss(inputs, data_samples)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/open-cd-olmoearth/opencd/models/change_detectors/siamencoder_decoder.py", line 186, in loss
+[rank0]:     x = self.extract_feat(inputs)
+[rank0]:         ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/change_detectors/bright_absdiff_encoder_decoder.py", line 69, in extract_feat
+[rank0]:     opt_feats = self.opt_backbone(opt_x)
+[rank0]:                 ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/backbones/skysensepp_backbones.py", line 314, in forward
+[rank0]:     x = layer(x)
+[rank0]:         ^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/backbones/skysensepp_backbones.py", line 190, in forward
+[rank0]:     return _inner_forward(x)
+[rank0]:            ^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/skysensepp_openmm/sspp_opencd/models/backbones/skysensepp_backbones.py", line 184, in _inner_forward
+[rank0]:     x = self.attn(self.norm1(x), identity=x)
+[rank0]:         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 395, in new_func
+[rank0]:     output = old_func(*args, **kwargs)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/cnn/bricks/transformer.py", line 542, in forward
+[rank0]:     out = self.attn(
+[rank0]:           ^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/activation.py", line 1380, in forward
+[rank0]:     attn_output, attn_output_weights = F.multi_head_attention_forward(
+[rank0]:                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/functional.py", line 6448, in multi_head_attention_forward
+[rank0]:     attn_output_weights = softmax(attn_output_weights, dim=-1)
+[rank0]:                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/functional.py", line 2137, in softmax
+[rank0]:     ret = input.softmax(dim)
+[rank0]:           ^^^^^^^^^^^^^^^^^^
+[rank0]: torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 4.00 GiB. GPU 0 has a total capacity of 79.25 GiB of which 710.94 MiB is free. Process 764972 has 78.55 GiB memory in use. Of the allocated memory 75.98 GiB is allocated by PyTorch, and 1.49 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
