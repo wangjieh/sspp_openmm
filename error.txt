@@ -1,2 +1,7 @@
 https://acnui5zam93z.feishu.cn/wiki/AwdwwgNwziz8ntkrfWrcT4Lxnyf?sheet=af94bb
 https://www.yuque.com/u39080498/eit1gn/zashrgfqd2zy0f0g#LDqU
+
+2026年7月18日
+1.Ningbo-2m-new数据集相关代码整理归档，推理，可视化，整理可视化文档。
+2.BRIGHT数据集4分类冻结测评（50 epoch, AdamW, lr=1e-4, path_size=4, mIoU=64.53）。
+3.CAU_FLOOD数据集相关代码整理归档，推理，可视化，整理可视化文档。
