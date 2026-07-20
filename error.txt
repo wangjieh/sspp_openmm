@@ -5,3 +5,9 @@ https://www.yuque.com/u39080498/eit1gn/zashrgfqd2zy0f0g#LDqU
 1.Ningbo-2m-new数据集相关代码整理归档，推理，可视化，整理可视化文档。
 2.BRIGHT数据集4分类冻结测评（50 epoch, AdamW, lr=1e-4, path_size=4, mIoU=64.53）。
 3.CAU_FLOOD数据集相关代码整理归档，推理，可视化，整理可视化文档。
+
+2026年7月20日
+1.完成BRIGHT数据4分类在swin-huge权重上的微调测评（50 epoch, AdamW, lr=1e-4, path_size=4, 
+backbone_lr=lr*0.1, mIoU=68.12）。
+2.BRIGHT数据测评代码归档。
+3.BRIGHT数据测评结果可视化文档整理。
