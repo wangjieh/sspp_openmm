@@ -1,0 +1,18 @@
+https://acnui5zam93z.feishu.cn/wiki/AwdwwgNwziz8ntkrfWrcT4Lxnyf?sheet=af94bb
+https://www.yuque.com/u39080498/eit1gn/zashrgfqd2zy0f0g#LDqU
+
+2026年7月18日
+1.Ningbo-2m-new数据集相关代码整理归档，推理，可视化，整理可视化文档。
+2.BRIGHT数据集4分类冻结测评（50 epoch, AdamW, lr=1e-4, path_size=4, mIoU=64.53）。
+3.CAU_FLOOD数据集相关代码整理归档，推理，可视化，整理可视化文档。
+
+2026年7月20日
+1.完成BRIGHT数据4分类在swin-huge权重上的微调测评（50 epoch, AdamW, lr=1e-4, path_size=4, 
+backbone_lr=lr*0.1, mIoU=68.12）。
+2.BRIGHT数据测评代码归档。
+3.BRIGHT数据测评结果可视化文档整理。
+
+2026年7月21日
+1.完成SVDT数据集在skysense++模型上的数据加载代码编写。
+2.编写SVDT数据集在skysense++模型上的训练配置文件（20 epoch, AdamW, lr=1e-4, path_size=4, 全量微调）。
+3.拉起SVDT数据集在skysense++模型上的训练，剩余时间8h。
