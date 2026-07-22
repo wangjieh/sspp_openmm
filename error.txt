@@ -1,18 +1,174 @@
-https://acnui5zam93z.feishu.cn/wiki/AwdwwgNwziz8ntkrfWrcT4Lxnyf?sheet=af94bb
-https://www.yuque.com/u39080498/eit1gn/zashrgfqd2zy0f0g#LDqU
+# slide_coco.py
+import argparse
+import json
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
-2026年7月18日
-1.Ningbo-2m-new数据集相关代码整理归档，推理，可视化，整理可视化文档。
-2.BRIGHT数据集4分类冻结测评（50 epoch, AdamW, lr=1e-4, path_size=4, mIoU=64.53）。
-3.CAU_FLOOD数据集相关代码整理归档，推理，可视化，整理可视化文档。
+import rasterio
+from rasterio.windows import Window
+from tqdm import tqdm
 
-2026年7月20日
-1.完成BRIGHT数据4分类在swin-huge权重上的微调测评（50 epoch, AdamW, lr=1e-4, path_size=4, 
-backbone_lr=lr*0.1, mIoU=68.12）。
-2.BRIGHT数据测评代码归档。
-3.BRIGHT数据测评结果可视化文档整理。
+IMAGE_EXTS = {'.tif', '.tiff', '.png', '.jpg', '.jpeg'}
 
-2026年7月21日
-1.完成SVDT数据集在skysense++模型上的数据加载代码编写。
-2.编写SVDT数据集在skysense++模型上的训练配置文件（20 epoch, AdamW, lr=1e-4, path_size=4, 全量微调）。
-3.拉起SVDT数据集在skysense++模型上的训练，剩余时间8h。
+
+def window_starts(length, tile_size, stride):
+    if length <= tile_size:
+        return [0]
+    starts = list(range(0, length - tile_size + 1, stride))
+    last = length - tile_size
+    if starts[-1] != last:
+        starts.append(last)  # 保证右/下边界被覆盖
+    return starts
+
+
+def clip_bbox(bbox, x, y, w, h, min_area_ratio):
+    bx, by, bw, bh = map(float, bbox)
+    x1, y1 = max(bx, x), max(by, y)
+    x2, y2 = min(bx + bw, x + w), min(by + bh, y + h)
+    iw, ih = max(0., x2 - x1), max(0., y2 - y1)
+
+    if iw <= 0 or ih <= 0 or iw * ih < bw * bh * min_area_ratio:
+        return None
+    return [x1 - x, y1 - y, iw, ih]
+
+
+def safe_stem(file_name):
+    return '__'.join(Path(str(file_name).replace('\\', '/')).with_suffix('').parts)
+
+
+def slice_one(item, image_dir, tile_size, stride, min_area_ratio):
+    image_info, image_path, annotations = item
+    records = []
+
+    with rasterio.open(image_path) as src:
+        for y in window_starts(src.height, tile_size, stride):
+            for x in window_starts(src.width, tile_size, stride):
+                w, h = min(tile_size, src.width - x), min(tile_size, src.height - y)
+                tile = src.read(window=Window(x, y, w, h))
+
+                name = f'{safe_stem(image_info["file_name"])}__x{x}_y{y}.tif'
+                out_path = image_dir / name
+
+                # 故意不继承 src.profile、CRS、transform 等地理信息
+                with rasterio.open(
+                    out_path, 'w',
+                    driver='GTiff',
+                    width=w,
+                    height=h,
+                    count=src.count,
+                    dtype=src.dtypes[0],
+                ) as dst:
+                    dst.write(tile)
+
+                labels = []
+                for ann in annotations:
+                    bbox = clip_bbox(
+                        ann['bbox'], x, y, w, h, min_area_ratio)
+                    if bbox is not None:
+                        labels.append((ann, bbox))
+
+                records.append((
+                    dict(file_name=f'images/{name}', width=w, height=h),
+                    labels
+                ))
+    return records
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Rasterio 多线程 COCO 水平框滑窗切片')
+    parser.add_argument('--img-dir', type=Path, required=True)
+    parser.add_argument('--json', dest='ann_json', type=Path,
+                        help='COCO 标注 JSON；省略时只切图')
+    parser.add_argument('--out-dir', type=Path, required=True)
+    parser.add_argument('--tile-size', type=int, default=512)
+    parser.add_argument('--stride', type=int, default=512)
+    parser.add_argument('--workers', type=int, default=4)
+    parser.add_argument(
+        '--min-area-ratio', type=float, default=0.0,
+        help='保留框与原框面积之比下限，默认保留所有相交框')
+    args = parser.parse_args()
+
+    if args.tile_size <= 0 or args.stride <= 0:
+        raise ValueError('--tile-size 和 --stride 必须大于 0')
+
+    image_out_dir = args.out_dir / 'images'
+    image_out_dir.mkdir(parents=True, exist_ok=True)
+
+    coco = None
+    if args.ann_json:
+        with args.ann_json.open(encoding='utf-8') as f:
+            coco = json.load(f)
+
+        anns_by_image = defaultdict(list)
+        for ann in coco.get('annotations', []):
+            anns_by_image[ann['image_id']].append(ann)
+
+        items = []
+        for image in coco.get('images', []):
+            path = args.img_dir / str(image['file_name'])
+            if not path.is_file():
+                raise FileNotFoundError(f'找不到 COCO 图像：{path}')
+            items.append((image, path, anns_by_image[image['id']]))
+    else:
+        paths = [p for p in args.img_dir.rglob('*')
+                 if p.is_file() and p.suffix.lower() in IMAGE_EXTS]
+        items = [
+            (dict(file_name=p.relative_to(args.img_dir).as_posix()), p, [])
+            for p in paths
+        ]
+
+    all_records = []
+    with ThreadPoolExecutor(max_workers=args.workers) as executor:
+        futures = executor.map(
+            lambda item: slice_one(
+                item, image_out_dir, args.tile_size, args.stride,
+                args.min_area_ratio),
+            items)
+
+        for records in tqdm(futures, total=len(items), desc='切片中'):
+            all_records.extend(records)
+
+    if coco is not None:
+        out_coco = {
+            'images': [],
+            'annotations': [],
+            'categories': coco.get('categories', []),
+        }
+        if 'info' in coco:
+            out_coco['info'] = coco['info']
+        if 'licenses' in coco:
+            out_coco['licenses'] = coco['licenses']
+
+        image_id, ann_id = 1, 1
+        for image, labels in all_records:
+            image['id'] = image_id
+            out_coco['images'].append(image)
+
+            for src_ann, bbox in labels:
+                out_coco['annotations'].append({
+                    'id': ann_id,
+                    'image_id': image_id,
+                    'category_id': src_ann['category_id'],
+                    'bbox': bbox,
+                    'area': bbox[2] * bbox[3],
+                    'iscrowd': src_ann.get('iscrowd', 0),
+                })
+                ann_id += 1
+            image_id += 1
+
+        out_json = args.out_dir / 'annotations.json'
+        with out_json.open('w', encoding='utf-8') as f:
+            json.dump(out_coco, f, ensure_ascii=False, indent=2)
+        print(f'完成：{len(out_coco["images"])} 个切片，'
+              f'{len(out_coco["annotations"])} 个水平框')
+        print(f'标注：{out_json}')
+    else:
+        print(f'完成：{len(all_records)} 个切片（未生成标注 JSON）')
+
+    print(f'图像：{image_out_dir}')
+
+
+if __name__ == '__main__':
+    main()
