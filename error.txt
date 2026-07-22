@@ -9,53 +9,77 @@ import rasterio
 from rasterio.windows import Window
 from tqdm import tqdm
 
+
 IMAGE_EXTS = {'.tif', '.tiff', '.png', '.jpg', '.jpeg'}
+OUTPUT_DRIVERS = {
+    '.tif': 'GTiff',
+    '.tiff': 'GTiff',
+    '.png': 'PNG',
+    '.jpg': 'JPEG',
+    '.jpeg': 'JPEG',
+}
 
 
 def window_starts(length, tile_size, stride):
+    """生成滑窗起点；最后一个窗口回移以完整覆盖边界。"""
     if length <= tile_size:
         return [0]
+
     starts = list(range(0, length - tile_size + 1, stride))
     last = length - tile_size
     if starts[-1] != last:
-        starts.append(last)  # 保证右/下边界被覆盖
+        starts.append(last)
     return starts
 
 
-def clip_bbox(bbox, x, y, w, h, min_area_ratio):
+def clip_bbox(bbox, x, y, width, height, min_area_ratio):
+    """将 COCO xywh 水平框裁剪到滑窗坐标系。"""
     bx, by, bw, bh = map(float, bbox)
-    x1, y1 = max(bx, x), max(by, y)
-    x2, y2 = min(bx + bw, x + w), min(by + bh, y + h)
-    iw, ih = max(0., x2 - x1), max(0., y2 - y1)
-
-    if iw <= 0 or ih <= 0 or iw * ih < bw * bh * min_area_ratio:
+    if bw <= 0 or bh <= 0:
         return None
-    return [x1 - x, y1 - y, iw, ih]
+
+    x1, y1 = max(bx, x), max(by, y)
+    x2, y2 = min(bx + bw, x + width), min(by + bh, y + height)
+    clipped_w, clipped_h = max(0., x2 - x1), max(0., y2 - y1)
+
+    if clipped_w <= 0 or clipped_h <= 0:
+        return None
+    if clipped_w * clipped_h / (bw * bh) < min_area_ratio:
+        return None
+
+    return [x1 - x, y1 - y, clipped_w, clipped_h]
 
 
 def safe_stem(file_name):
-    return '__'.join(Path(str(file_name).replace('\\', '/')).with_suffix('').parts)
+    """将相对路径转为可用于单层输出目录的文件名前缀。"""
+    path = Path(str(file_name).replace('\\', '/'))
+    return '__'.join(path.with_suffix('').parts)
 
 
-def slice_one(item, image_dir, tile_size, stride, min_area_ratio):
+def slice_one(item, image_out_dir, tile_size, stride, min_area_ratio):
     image_info, image_path, annotations = item
+    suffix = image_path.suffix  # 保持原扩展名，例如 .PNG、.tiff
+    driver = OUTPUT_DRIVERS[suffix.lower()]
     records = []
 
     with rasterio.open(image_path) as src:
         for y in window_starts(src.height, tile_size, stride):
             for x in window_starts(src.width, tile_size, stride):
-                w, h = min(tile_size, src.width - x), min(tile_size, src.height - y)
-                tile = src.read(window=Window(x, y, w, h))
+                width = min(tile_size, src.width - x)
+                height = min(tile_size, src.height - y)
+                window = Window(x, y, width, height)
+                tile = src.read(window=window)
 
-                name = f'{safe_stem(image_info["file_name"])}__x{x}_y{y}.tif'
-                out_path = image_dir / name
+                name = f'{safe_stem(image_info["file_name"])}__x{x}_y{y}{suffix}'
+                out_path = image_out_dir / name
 
-                # 故意不继承 src.profile、CRS、transform 等地理信息
+                # 不复制 src.profile，因此不会继承 CRS、transform 等地理信息。
                 with rasterio.open(
-                    out_path, 'w',
-                    driver='GTiff',
-                    width=w,
-                    height=h,
+                    out_path,
+                    'w',
+                    driver=driver,
+                    width=width,
+                    height=height,
                     count=src.count,
                     dtype=src.dtypes[0],
                 ) as dst:
@@ -64,41 +88,51 @@ def slice_one(item, image_dir, tile_size, stride, min_area_ratio):
                 labels = []
                 for ann in annotations:
                     bbox = clip_bbox(
-                        ann['bbox'], x, y, w, h, min_area_ratio)
+                        ann['bbox'], x, y, width, height, min_area_ratio)
                     if bbox is not None:
                         labels.append((ann, bbox))
 
                 records.append((
-                    dict(file_name=f'images/{name}', width=w, height=h),
-                    labels
+                    dict(file_name=f'images/{name}', width=width, height=height),
+                    labels,
                 ))
+
     return records
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Rasterio 多线程 COCO 水平框滑窗切片')
-    parser.add_argument('--img-dir', type=Path, required=True)
+        description='使用 rasterio 多线程进行 COCO 水平框滑窗切片')
+    parser.add_argument('--img-dir', type=Path, required=True,
+                        help='输入图像根目录')
     parser.add_argument('--json', dest='ann_json', type=Path,
-                        help='COCO 标注 JSON；省略时只切图')
-    parser.add_argument('--out-dir', type=Path, required=True)
-    parser.add_argument('--tile-size', type=int, default=512)
-    parser.add_argument('--stride', type=int, default=512)
-    parser.add_argument('--workers', type=int, default=4)
+                        help='可选：COCO 水平框标注 JSON')
+    parser.add_argument('--out-dir', type=Path, required=True,
+                        help='输出目录')
+    parser.add_argument('--tile-size', type=int, default=512,
+                        help='滑窗大小，默认 512')
+    parser.add_argument('--stride', type=int, default=512,
+                        help='滑动步长，默认 512')
+    parser.add_argument('--workers', type=int, default=4,
+                        help='线程数，默认 4')
     parser.add_argument(
-        '--min-area-ratio', type=float, default=0.0,
-        help='保留框与原框面积之比下限，默认保留所有相交框')
+        '--min-area-ratio',
+        type=float,
+        default=0.0,
+        help='保留框相对原框的最小面积比例，默认保留所有相交框')
     args = parser.parse_args()
 
     if args.tile_size <= 0 or args.stride <= 0:
         raise ValueError('--tile-size 和 --stride 必须大于 0')
+    if not 0 <= args.min_area_ratio <= 1:
+        raise ValueError('--min-area-ratio 必须位于 [0, 1]')
 
     image_out_dir = args.out_dir / 'images'
     image_out_dir.mkdir(parents=True, exist_ok=True)
 
     coco = None
     if args.ann_json:
-        with args.ann_json.open(encoding='utf-8') as f:
+        with args.ann_json.open('r', encoding='utf-8') as f:
             coco = json.load(f)
 
         anns_by_image = defaultdict(list)
@@ -107,67 +141,87 @@ def main():
 
         items = []
         for image in coco.get('images', []):
-            path = args.img_dir / str(image['file_name'])
-            if not path.is_file():
-                raise FileNotFoundError(f'找不到 COCO 图像：{path}')
-            items.append((image, path, anns_by_image[image['id']]))
+            image_path = args.img_dir / str(image['file_name'])
+            if not image_path.is_file():
+                raise FileNotFoundError(f'找不到 COCO 对应图像：{image_path}')
+            if image_path.suffix.lower() not in OUTPUT_DRIVERS:
+                raise ValueError(f'暂不支持此图像格式：{image_path}')
+            items.append((
+                image,
+                image_path,
+                anns_by_image[image['id']],
+            ))
     else:
-        paths = [p for p in args.img_dir.rglob('*')
-                 if p.is_file() and p.suffix.lower() in IMAGE_EXTS]
+        paths = [
+            p for p in args.img_dir.rglob('*')
+            if p.is_file() and p.suffix.lower() in IMAGE_EXTS
+        ]
         items = [
-            (dict(file_name=p.relative_to(args.img_dir).as_posix()), p, [])
+            (
+                dict(file_name=p.relative_to(args.img_dir).as_posix()),
+                p,
+                [],
+            )
             for p in paths
         ]
 
     all_records = []
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
-        futures = executor.map(
+        results = executor.map(
             lambda item: slice_one(
-                item, image_out_dir, args.tile_size, args.stride,
-                args.min_area_ratio),
-            items)
-
-        for records in tqdm(futures, total=len(items), desc='切片中'):
+                item,
+                image_out_dir,
+                args.tile_size,
+                args.stride,
+                args.min_area_ratio,
+            ),
+            items,
+        )
+        for records in tqdm(results, total=len(items), desc='切片中'):
             all_records.extend(records)
 
-    if coco is not None:
-        out_coco = {
-            'images': [],
-            'annotations': [],
-            'categories': coco.get('categories', []),
-        }
-        if 'info' in coco:
-            out_coco['info'] = coco['info']
-        if 'licenses' in coco:
-            out_coco['licenses'] = coco['licenses']
+    if coco is None:
+        print(f'完成：共生成 {len(all_records)} 个切片。')
+        print(f'图像目录：{image_out_dir}')
+        return
 
-        image_id, ann_id = 1, 1
-        for image, labels in all_records:
-            image['id'] = image_id
-            out_coco['images'].append(image)
+    out_coco = {
+        'images': [],
+        'annotations': [],
+        'categories': coco.get('categories', []),
+    }
+    if 'info' in coco:
+        out_coco['info'] = coco['info']
+    if 'licenses' in coco:
+        out_coco['licenses'] = coco['licenses']
 
-            for src_ann, bbox in labels:
-                out_coco['annotations'].append({
-                    'id': ann_id,
-                    'image_id': image_id,
-                    'category_id': src_ann['category_id'],
-                    'bbox': bbox,
-                    'area': bbox[2] * bbox[3],
-                    'iscrowd': src_ann.get('iscrowd', 0),
-                })
-                ann_id += 1
-            image_id += 1
+    image_id = 1
+    ann_id = 1
+    for image, labels in all_records:
+        image['id'] = image_id
+        out_coco['images'].append(image)
 
-        out_json = args.out_dir / 'annotations.json'
-        with out_json.open('w', encoding='utf-8') as f:
-            json.dump(out_coco, f, ensure_ascii=False, indent=2)
-        print(f'完成：{len(out_coco["images"])} 个切片，'
-              f'{len(out_coco["annotations"])} 个水平框')
-        print(f'标注：{out_json}')
-    else:
-        print(f'完成：{len(all_records)} 个切片（未生成标注 JSON）')
+        for src_ann, bbox in labels:
+            out_coco['annotations'].append({
+                'id': ann_id,
+                'image_id': image_id,
+                'category_id': src_ann['category_id'],
+                'bbox': bbox,
+                'area': bbox[2] * bbox[3],
+                'iscrowd': src_ann.get('iscrowd', 0),
+            })
+            ann_id += 1
 
-    print(f'图像：{image_out_dir}')
+        image_id += 1
+
+    out_json = args.out_dir / 'annotations.json'
+    with out_json.open('w', encoding='utf-8') as f:
+        json.dump(out_coco, f, ensure_ascii=False, indent=2)
+
+    print(f'完成：共生成 {len(out_coco["images"])} 个切片。')
+    print(f'共生成 {len(out_coco["annotations"])} 个裁剪后的水平框。')
+    print(f'图像目录：{image_out_dir}')
+    print(f'标注文件：{out_json}')
 
 
 if __name__ == '__main__':
