@@ -1,1 +1,1 @@
-https://pypi.mirrors.ustc.edu.cn/simple/
+Location: /home/users_test/.local/lib/python3.12/site-packages
