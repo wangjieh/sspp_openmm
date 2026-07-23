@@ -1,1 +1,37 @@
-FileNotFoundError: [Errno 2] No such file or directory: '/mnt/htzzb2/EO_test/datasets/www/track2_dataset/test'
+STRUCTURE:
+  model_name: evissgnet
+  width: 12
+  block_residual: True
+  block_reps: 2
+  use_coords: True
+
+DATA:
+  input_channel: 4
+  root: /mnt/htzzb2/EO_test/datasets/www/track2_dataset
+  whole_t: 8000 #ms
+  res: [346,260]
+
+TRAIN:
+  epochs: 50
+  batch_size: 1
+  train_workers: 1
+  optim: Adam # Adam or SGD
+  lr: 0.001
+  k: 3
+  t: 5
+  max_events_num : 700000
+  model_save_root:  /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/log/model
+
+TEST:
+  vis: False
+  eval: False
+  roc: False
+  pd_detT: 50
+  correct_thresh: 0.0005
+  save: True
+  save_path: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/submission/track2_submission.zip
+  submit_thresh: 0.85
+  model_path: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/log/model/best_iou_seed37.pt
+
+
+
