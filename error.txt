@@ -1,3 +1,9 @@
-cd /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main
+cd /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/third_party/cumm
+export CUMM_DISABLE_JIT=1
+python setup.py build_ext --inplace
+python -m pip install -v --no-build-isolation --no-deps -e .
 
-python -c "import importlib.util; from pccm.utils import project_is_editable; s=importlib.util.find_spec('spconv'); print('spec =', s); print('origin =', s.origin if s else None); print('editable =', project_is_editable('spconv'))"
+cd ../spconv
+export SPCONV_DISABLE_JIT=1
+python setup.py build_ext --inplace
+python -m pip install -v --no-build-isolation --no-deps -e .
