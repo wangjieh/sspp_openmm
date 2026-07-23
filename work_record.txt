@@ -25,3 +25,4 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 
 2026年7月23日
 1.与之前复现skysense++的训练配置保持一致，完成Ningbo-2m数据在该模型上的训练测评（20 epoch, AdamW, lr=1e-4, path_size=4, 全量微调, mIoU=72.04）。
+2.学习调参配置。
