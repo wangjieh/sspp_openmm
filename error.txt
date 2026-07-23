@@ -1,11 +1,12 @@
-building 'HAIS_OP' extension
-  creating /tmp/tmpknupgulu.build-temp/src
-  /usr/local/cuda-12.6/bin/nvcc -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda-12.6/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/include/python3.12 -c src/cuda.cu -o /tmp/tmpknupgulu.build-temp/src/cuda.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -O2 -DTORCH_API_INCLUDE_EXTENSION_H -DPYBIND11_COMPILER_TYPE=\"_gcc\" -DPYBIND11_STDLIB=\"_libstdcpp\" -DPYBIND11_BUILD_ABI=\"_cxxabi1018\" -DTORCH_EXTENSION_NAME=HAIS_OP -gencode=arch=compute_80,code=sm_80 -ccbin /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/x86_64-conda-linux-gnu-cc -std=c++17
+creating /tmp/tmptr4cij93.build-temp/src
+  /usr/local/cuda-12.6/bin/nvcc -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -I/usr/local/cuda-12.6/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/include/python3.12 -c src/cuda.cu -o /tmp/tmptr4cij93.build-temp/src/cuda.o -D__CUDA_NO_HALF_OPERATORS__ -D__CUDA_NO_HALF_CONVERSIONS__ -D__CUDA_NO_BFLOAT16_CONVERSIONS__ -D__CUDA_NO_HALF2_OPERATORS__ --expt-relaxed-constexpr --compiler-options '-fPIC' -O2 -DTORCH_API_INCLUDE_EXTENSION_H -DPYBIND11_COMPILER_TYPE=\"_gcc\" -DPYBIND11_STDLIB=\"_libstdcpp\" -DPYBIND11_BUILD_ABI=\"_cxxabi1018\" -DTORCH_EXTENSION_NAME=HAIS_OP -gencode=arch=compute_80,code=sm_80 -ccbin /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/x86_64-conda-linux-gnu-cc -std=c++17
   nvcc warning : incompatible redefinition for option 'compiler-bindir', the last value of this option was used
-  In file included from src/cuda.cu:2:
-  src/datatype/datatype.h:7:10: fatal error: google/dense_hash_map: No such file or directory
-      7 | #include <google/dense_hash_map>
-        |          ^~~~~~~~~~~~~~~~~~~~~~~
+  In file included from /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/sparsehash/src/google/dense_hash_map:34,
+                   from src/datatype/datatype.h:7,
+                   from src/cuda.cu:2:
+  /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/sparsehash/src/sparsehash/dense_hash_map:99:10: fatal error: sparsehash/internal/sparseconfig.h: No such file or directory
+     99 | #include <sparsehash/internal/sparseconfig.h>
+        |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   compilation terminated.
   error: command '/usr/local/cuda-12.6/bin/nvcc' failed with exit code 1
   error: subprocess-exited-with-error
@@ -15,7 +16,7 @@ building 'HAIS_OP' extension
   ╰─> No available output.
   
   note: This error originates from a subprocess, and is likely not a problem with pip.
-  full command: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py build_editable /tmp/tmp7ph_enlu
+  full command: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py build_editable /tmp/tmpi040jh57
   cwd: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/lib/hais_ops
   Building editable for HAIS_OP (pyproject.toml) ... error
   ERROR: Failed building editable for HAIS_OP
@@ -23,4 +24,4 @@ Failed to build HAIS_OP
 error: failed-wheel-build-for-install
 
 × Failed to build installable wheels for some pyproject.toml based projects
-╰─> HAIS_O
+╰─> HAIS_OP
