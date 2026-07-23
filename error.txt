@@ -1,493 +1,158 @@
-"""SkySense++ HR UPerNet config for LOVE-DA semantic segmentation."""
-
-custom_imports = dict(imports=["sspp_mmseg"], allow_failed_imports=False)
-
-default_scope = "mmseg"
-env_cfg = dict(
-    cudnn_benchmark=True,
-    mp_cfg=dict(mp_start_method="fork", opencv_num_threads=0),
-    dist_cfg=dict(backend="nccl"))
-find_unused_parameters = True
-model_wrapper_cfg = dict(
-    type="MMDistributedDataParallel", find_unused_parameters=True)
-launcher = "pytorch"
-log_level = "INFO"
-load_from = None
-resume = False
-
-data_root = "/mnt/htzzb2/EO_test/datasets/LOVE-DA"
-pretrained = "/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_hr.pth"
-work_dir = "/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/loveda_hr_upernet_20e_lr0.0001_512x512"
-dataset_type = "LoveDADataset"
-input_size = (512, 512)
-ignore_index = 255
-classes = (
-    "Background",
-    "Building",
-    "Road",
-    "Water",
-    "Barren",
-    "Forest",
-    "Agriculture",
-)
-palette = [
-    [255, 255, 255],
-    [255, 0, 0],
-    [255, 255, 0],
-    [0, 0, 255],
-    [159, 129, 183],
-    [0, 255, 0],
-    [255, 195, 128],
-]
-num_classes = len(classes)
-metainfo = dict(classes=classes, palette=palette)
-hr_channels = [352, 704, 1408, 2816]
-norm_cfg = dict(type="SyncBN", requires_grad=True)
-
-data_preprocessor = dict(
-    type="SegDataPreProcessor",
-    mean=[123.675, 116.28, 103.53],
-    std=[58.395, 57.12, 57.375],
-    bgr_to_rgb=False,
-    pad_val=0,
-    seg_pad_val=ignore_index,
-    size=input_size)
-
-pack_meta_keys = (
-    "img_path",
-    "seg_map_path",
-    "ori_shape",
-    "img_shape",
-    "pad_shape",
-    "scale_factor",
-    "flip",
-    "flip_direction",
-    "reduce_zero_label",
-)
-
-train_pipeline = [
-    dict(type="LoveDALoadImageFromRasterio"),
-    dict(type="LoveDALoadAnnotationsFromRasterio", ignore_index=ignore_index),
-    dict(type="RandomCrop", crop_size=input_size, cat_max_ratio=0.95),
-    dict(type="RandomFlip", prob=0.5),
-    dict(type="PackSegInputs", meta_keys=pack_meta_keys),
-]
-val_pipeline = [
-    dict(type="LoveDALoadImageFromRasterio"),
-    dict(type="LoveDALoadAnnotationsFromRasterio", ignore_index=ignore_index),
-    dict(type="PackSegInputs", meta_keys=pack_meta_keys),
-]
-test_pipeline = [
-    dict(type="LoveDALoadImageFromRasterio"),
-    dict(type="PackSegInputs", meta_keys=pack_meta_keys),
-]
-
-train_dataloader = dict(
-    batch_size=8,
-    num_workers=4,
-    persistent_workers=True,
-    sampler=dict(type="DefaultSampler", shuffle=True),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        metainfo=metainfo,
-        data_prefix=dict(
-            img_path="img_dir/train_slice",
-            seg_map_path="ann_dir/train_slice",
-        ),
-        pipeline=train_pipeline))
-val_dataloader = dict(
-    batch_size=8,
-    num_workers=4,
-    persistent_workers=True,
-    sampler=dict(type="DefaultSampler", shuffle=False),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        metainfo=metainfo,
-        data_prefix=dict(
-            img_path="img_dir/val_slice",
-            seg_map_path="ann_dir/val_slice",
-        ),
-        pipeline=val_pipeline))
-test_dataloader = dict(
-    batch_size=8,
-    num_workers=4,
-    persistent_workers=True,
-    sampler=dict(type="DefaultSampler", shuffle=False),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        metainfo=metainfo,
-        data_prefix=dict(img_path="img_dir/test_slice"),
-        pipeline=test_pipeline,
-        test_mode=True))
-
-val_evaluator = dict(type="IoUMetric", iou_metrics=["mIoU", "mFscore"])
-test_evaluator = dict(
-    type="IoUMetric",
-    iou_metrics=["mIoU"],
-    format_only=True,
-    # output_dir="work_dirs/loveda_hr_upernet_20e_512x512/test_results"
-    )
-
-model = dict(
-    type="EncoderDecoder",
-    data_preprocessor=data_preprocessor,
-    backbone=dict(
-        type="SkySensePPHR",
-        in_channels=3,
-        patch_size=4,
-        window_size=8,
-        init_cfg=dict(type="Pretrained", checkpoint=pretrained),
-        out_indices=(0, 1, 2, 3)),
-    decode_head=dict(
-        type="UPerHead",
-        in_channels=hr_channels,
-        in_index=[0, 1, 2, 3],
-        pool_scales=(1, 2, 3, 6),
-        channels=512,
-        dropout_ratio=0.1,
-        num_classes=num_classes,
-        norm_cfg=norm_cfg,
-        align_corners=False,
-        ignore_index=ignore_index,
-        loss_decode=dict(
-            type="CrossEntropyLoss",
-            use_sigmoid=False,
-            loss_weight=1.0)),
-    train_cfg=dict(),
-    test_cfg=dict(mode="whole"))
-
-optim_wrapper = dict(
-    type="OptimWrapper",
-    optimizer=dict(
-        type="AdamW", lr=1e-4, betas=(0.9, 0.999), weight_decay=0.01),
-    clip_grad=dict(max_norm=1.0, norm_type=2))
-param_scheduler = [
-    dict(
-        type="LinearLR",
-        start_factor=1e-6,
-        by_epoch=False,
-        begin=0,
-        end=1500),
-    dict(type="PolyLR", eta_min=0.0, power=1.0, begin=0, end=20,
-         by_epoch=True),
-]
-
-train_cfg = dict(type="EpochBasedTrainLoop", max_epochs=20, val_interval=1)
-val_cfg = dict(type="ValLoop")
-test_cfg = dict(type="TestLoop")
-
-default_hooks = dict(
-    timer=dict(type="IterTimerHook"),
-    logger=dict(type="LoggerHook", interval=50),
-    param_scheduler=dict(type="ParamSchedulerHook"),
-    checkpoint=dict(
-        type="CheckpointHook",
-        interval=1,
-        by_epoch=True,
-        max_keep_ckpts=3,
-        save_best="mIoU"),
-    sampler_seed=dict(type="DistSamplerSeedHook"),
-    visualization=dict(type="SegVisualizationHook"))
-
-log_processor = dict(type="LogProcessor", window_size=50, by_epoch=True)
-visualizer = dict(
-    type="SegLocalVisualizer",
-    vis_backends=[dict(type="LocalVisBackend")],
-    name="visualizer")
-auto_scale_lr = dict(enable=False, base_batch_size=8)
-randomness = dict(seed=0, deterministic=False)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import os
-
-_base_ = ['../../../../../configs/_base_/default_runtime.py']
-custom_imports = dict(
-    imports=[
-        "projects.dinov3.LoveDA.dinov3",
-        "projects.olmoearth.svdt.olmoearth"
-    ],
-    allow_failed_imports=False,
-)
-
-ignore_index = 255
-num_classes = 7
-crop_size = 512
-patch_size = 4
-swin_huge_channels = [352, 704, 1408, 2816]
-dataset_type = 'LoveDADataset'
-
-# Accept either an extracted pure backbone state_dict or the merged DINOv3
-# distillation checkpoint. The wrapper prefers model_ema.backbone weights.
-swin_huge_checkpoint = os.path.join(
-    os.environ.get('MM_ARCHIVE_CKPT_HOME'), 
-    'swin-distill', 
-    '30999', 
-    'swintransformer-huge.pt'
-)
-data_root = '/mnt/ht2-nas2/EO_test/dataset/2021LoveDA/'
-
-train_pipeline = [
-    dict(type="LoadImageFromFile", to_float32=True),
-    dict(type="LoadAnnotations"),
-    dict(
-        type="RandomCrop",
-        crop_size=(crop_size, crop_size),
-        cat_max_ratio=0.75,
-    ),
-    dict(
-        type="RandomRotate",
-        prob=0.5,
-        degree=90,
-        pad_val=0,
-        seg_pad_val=ignore_index,
-    ),
-    dict(type="RandomFlip", prob=0.5, direction="horizontal"),
-    dict(type="RandomFlip", prob=0.5, direction="vertical"),
-    dict(type="PackSegInputs"),
-]
-
-val_pipeline = [
-    dict(type="LoadImageFromFile", to_float32=True),
-    dict(type="LoadAnnotations"),
-    dict(type="PackSegInputs"),
-]
-
-train_dataloader = dict(
-    batch_size=16,
-    num_workers=4,
-    persistent_workers=True,
-    sampler=dict(type="DefaultSampler", shuffle=True),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        data_prefix=dict(
-            img_path="img_dir/train",
-            seg_map_path="ann_dir/train",
-        ),
-        ignore_index=ignore_index,
-        reduce_zero_label=True,
-        pipeline=train_pipeline,
-    ),
-)
-
-val_dataloader = dict(
-    batch_size=16,
-    num_workers=4,
-    persistent_workers=True,
-    sampler=dict(type="DefaultSampler", shuffle=False),
-    dataset=dict(
-        type=dataset_type,
-        data_root=data_root,
-        data_prefix=dict(
-            img_path="img_dir/val",
-            seg_map_path="ann_dir/val",
-        ),
-        ignore_index=ignore_index,
-        reduce_zero_label=True,
-        pipeline=val_pipeline,
-    ),
-)
-
-test_pipeline = [
-    dict(type="LoadImageFromFile", to_float32=True),
-    dict(type="PackSegInputs"),   # 没有 seg 字段时，PackSegInputs 会安全跳过
-]
-
-test_dataloader = dict(
-    batch_size=16,
-    num_workers=4,
-    persistent_workers=True,
-    sampler=dict(type="DefaultSampler", shuffle=False),
-    dataset=dict(
-        type=dataset_type,                # 保持与训练/验证相同的 Dataset 类
-        data_root=data_root,
-        data_prefix=dict(
-            img_path="img_dir/test",      # 请根据实际测试图像路径修改
-            # seg_map_path 不提供，或显式设为 None
-        ),
-        ignore_index=ignore_index,        # 即使没有标注，这些参数仍保留（不影响）
-        reduce_zero_label=True,
-        pipeline=test_pipeline,
-    ),
-)
-
-val_evaluator = dict(
-    type="OlmoEarthIoUMetric",
-    num_classes=num_classes,
-    iou_metrics=["mIoU", "mFscore"],
-    ignore_index=ignore_index,
-    use_valid_mask=False,
-)
-
-test_evaluator = dict(
-    type='IoUMetric',
-    iou_metrics=['mIoU'],
-    format_only=True,
-    keep_results=True,
-    output_dir=os.path.join(os.environ.get('WORK_DIR'), 'Result')
-)
-
-data_preprocessor = dict(
-    type="SegDataPreProcessor",
-    mean=[76.19, 78.34, 71.53],
-    std=[33.65, 34.96, 38.84],
-    bgr_to_rgb=True,
-    pad_val=0,
-    seg_pad_val=ignore_index,
-    size_divisor=32,
-    test_cfg=dict(size_divisor=32),
-)
-norm_cfg = dict(type="SyncBN", requires_grad=True)
-model = dict(
-    type="EncoderDecoder",
-    data_preprocessor=data_preprocessor,
-    backbone=dict(
-        type="DINOv3DistilledSwinHuge",
-        checkpoint=swin_huge_checkpoint,
-        img_size=crop_size,
-        patch_size=patch_size,
-        window_size=8,
-        out_indices=(0, 1, 2, 3),
-        use_ema=True,
-        frozen=False,
-    ),
-    decode_head=dict(
-        type="UPerHead",
-        in_channels=swin_huge_channels,
-        in_index=[0, 1, 2, 3],
-        pool_scales=(1, 2, 3, 6),
-        channels=512,
-        dropout_ratio=0.1,
-        num_classes=num_classes,
-        ignore_index=ignore_index,
-        align_corners=False,
-        loss_decode=dict(
-            type="CrossEntropyLoss",
-            use_sigmoid=False,
-            loss_weight=1.0,
-        ),
-        norm_cfg=norm_cfg
-    ),
-    auxiliary_head=dict(
-        type="FCNHead",
-        in_channels=1408,
-        in_index=2,
-        channels=512,
-        num_convs=1,
-        concat_input=False,
-        dropout_ratio=0.1,
-        num_classes=num_classes,
-        ignore_index=ignore_index,
-        align_corners=False,
-        loss_decode=dict(
-            type="CrossEntropyLoss",
-            use_sigmoid=False,
-            loss_weight=0.4,
-        ),
-        norm_cfg=norm_cfg
-    ),
-    test_cfg=dict(
-        mode="slide",
-        crop_size=(crop_size, crop_size),
-        stride=(crop_size // 2, crop_size // 2),
-    ),
-    train_cfg=dict()
-)
-
-optim_wrapper = dict(
-    type='OptimWrapper',
-    optimizer=dict(
-        type='AdamW',
-        lr=1e-4,
-        weight_decay=0.05),
-    paramwise_cfg=dict(
-        custom_keys={
-            "backbone": dict(lr_mult=0.1, decay_mult=1.0)
-        }
-    ),
-    clip_grad=dict(max_norm=35, norm_type=2))
-
-param_scheduler = [
-    dict(
-        type='LinearLR',
-        start_factor=1.0 / 3,
-        by_epoch=True,
-        begin=0,
-        end=5),
-    dict(
-        type='MultiStepLR',
-        begin=5,
-        end=50,
-        by_epoch=True,
-        milestones=[60, 80],
-        gamma=0.1),
-]
-
-train_cfg = dict(type="EpochBasedTrainLoop", max_epochs=50, val_interval=10)
-val_cfg = dict(type="ValLoop")
-test_cfg = dict(type="TestLoop")
-
-default_hooks = dict(
-    timer=dict(type="IterTimerHook"),
-    logger=dict(type="LoggerHook", interval=100, log_metric_by_epoch=True),
-    param_scheduler=dict(type="ParamSchedulerHook"),
-    checkpoint=dict(
-        type="CheckpointHook",
-        by_epoch=True,
-        interval=10,
-        save_best="mIoU",
-        rule="greater",
-        max_keep_ckpts=3,
-    ),
-    sampler_seed=dict(type="DistSamplerSeedHook"),
-    visualization=dict(type="SegVisualizationHook"),
-)
-vis_backends = [dict(type='LocalVisBackend')]
-visualizer = dict(
-    type='CustomSegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
-
-env_cfg = dict(
-    cudnn_benchmark=True,
-    mp_cfg=dict(mp_start_method="fork", opencv_num_threads=0),
-    dist_cfg=dict(backend="nccl"),
-)
-
-default_scope = "mmseg"
-log_level = "INFO"
-load_from = None
-resume = False
-auto_scale_lr = dict(enable=False, base_batch_size=4)
+Using pip 26.1.2 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip (python 3.12)
+Obtaining file:///mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/lib/hais_ops
+  Running command installing build dependencies
+  Using pip 26.1.2 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip (python 3.12)
+  Collecting setuptools>=40.8.0
+    Obtaining dependency information for setuptools>=40.8.0 from https://files.pythonhosted.org/packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata
+    WARNING: Retrying (Retry(total=4, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable")': /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata
+    WARNING: Retrying (Retry(total=3, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable")': /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata
+    WARNING: Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable")': /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata
+    WARNING: Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable")': /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata
+    WARNING: Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable")': /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata
+  ERROR: Could not install packages due to an OSError.
+  Traceback (most recent call last):
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connection.py", line 204, in _new_conn
+      sock = connection.create_connection(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/util/connection.py", line 85, in create_connection
+      raise err
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/util/connection.py", line 73, in create_connection
+      sock.connect(sa)
+  OSError: [Errno 101] Network is unreachable
+
+  The above exception was the direct cause of the following exception:
+
+  Traceback (most recent call last):
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 787, in urlopen
+      response = self._make_request(
+                 ^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 488, in _make_request
+      raise new_e
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 464, in _make_request
+      self._validate_conn(conn)
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 1093, in _validate_conn
+      conn.connect()
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connection.py", line 759, in connect
+      self.sock = sock = self._new_conn()
+                         ^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connection.py", line 219, in _new_conn
+      raise NewConnectionError(
+  pip._vendor.urllib3.exceptions.NewConnectionError: HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable
+
+  The above exception was the direct cause of the following exception:
+
+  Traceback (most recent call last):
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/requests/adapters.py", line 645, in send
+      resp = conn.urlopen(
+             ^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 871, in urlopen
+      return self.urlopen(
+             ^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 871, in urlopen
+      return self.urlopen(
+             ^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 871, in urlopen
+      return self.urlopen(
+             ^^^^^^^^^^^^^
+    [Previous line repeated 2 more times]
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/connectionpool.py", line 841, in urlopen
+      retries = retries.increment(
+                ^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/urllib3/util/retry.py", line 535, in increment
+      raise MaxRetryError(_pool, url, reason) from reason  # type: ignore[arg-type]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  pip._vendor.urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Max retries exceeded with url: /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata (Caused by NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable"))
+
+  During handling of the above exception, another exception occurred:
+
+  Traceback (most recent call last):
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/commands/install.py", line 479, in run
+      requirement_set = resolver.resolve(
+                        ^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/resolver.py", line 99, in resolve
+      result = self._result = resolver.resolve(
+                              ^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/resolvelib/resolvers/resolution.py", line 601, in resolve
+      state = resolution.resolve(requirements, max_rounds=max_rounds)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/resolvelib/resolvers/resolution.py", line 434, in resolve
+      self._add_to_criteria(self.state.criteria, r, parent=None)
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/resolvelib/resolvers/resolution.py", line 150, in _add_to_criteria
+      if not criterion.candidates:
+             ^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/resolvelib/structs.py", line 194, in __bool__
+      return bool(self._sequence)
+             ^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 165, in __bool__
+      self._bool = any(self)
+                   ^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 149, in <genexpr>
+      return (c for c in iterator if id(c) not in self._incompatible_ids)
+                         ^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/found_candidates.py", line 39, in _iter_built
+      candidate = func()
+                  ^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/factory.py", line 182, in _make_candidate_from_link
+      base: BaseCandidate | None = self._make_base_candidate_from_link(
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/factory.py", line 228, in _make_base_candidate_from_link
+      self._link_candidate_cache[link] = LinkCandidate(
+                                         ^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 326, in __init__
+      super().__init__(
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 168, in __init__
+      self.dist = self._prepare()
+                  ^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 246, in _prepare
+      dist = self._prepare_distribution()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/resolution/resolvelib/candidates.py", line 337, in _prepare_distribution
+      return preparer.prepare_linked_requirement(self._ireq, parallel_builds=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/operations/prepare.py", line 530, in prepare_linked_requirement
+      metadata_dist = self._fetch_metadata_only(req)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/operations/prepare.py", line 385, in _fetch_metadata_only
+      return self._fetch_metadata_using_link_data_attr(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/operations/prepare.py", line 405, in _fetch_metadata_using_link_data_attr
+      metadata_file = get_http_url(
+                      ^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/operations/prepare.py", line 121, in get_http_url
+      from_path, content_type = download(link, temp_dir.path)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/network/download.py", line 187, in __call__
+      resp = self._http_get(link)
+             ^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/network/download.py", line 332, in _http_get
+      resp = self._session.get(target_url, headers=headers, stream=True)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/requests/sessions.py", line 605, in get
+      return self.request("GET", url, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_internal/network/session.py", line 537, in request
+      return super().request(method, url, *args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/requests/sessions.py", line 592, in request
+      resp = self.send(prep, **send_kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/requests/sessions.py", line 706, in send
+      r = adapter.send(request, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/cachecontrol/adapter.py", line 76, in send
+      resp = super().send(request, stream, timeout, verify, cert, proxies)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/requests/adapters.py", line 678, in send
+      raise ConnectionError(e, request=request)
+  pip._vendor.requests.exceptions.ConnectionError: HTTPSConnectionPool(host='files.pythonhosted.org', port=443): Max retries exceeded with url: /packages/5d/40/e1e72872c6354b306daef1703549e8e83b4d43cfea356311bf722a043752/setuptools-83.0.0-py3-none-any.whl.metadata (Caused by NewConnectionError("HTTPSConnection(host='files.pythonhosted.org', port=443): Failed to establish a new connection: [Errno 101] Network is unreachable"))
+  error: subprocess-exited-with-error
+  
+  × installing build dependencies did not run successfully.
+  │ exit code: 1
+  ╰─> No available output.
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  full command: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/__pip-runner__.py install --ignore-installed --no-user --prefix /tmp/pip-build-env-v5g1df7q/overlay --no-warn-script-location --disable-pip-version-check --no-compile --target '' -v --no-binary :none: --only-binary :none: -i https://pypi.org/simple -- 'setuptools>=40.8.0'
+  cwd: [inherit]
+  Installing build dependencies ... error
+ERROR: Failed to build 'file:///mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/lib/hais_ops' when installing build dependencies
