@@ -1,21 +1,12 @@
-Traceback (most recent call last):
-  File "<frozen runpy>", line 189, in _run_module_as_main
-  File "<frozen runpy>", line 112, in _get_module_details
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/train.py", line 6, in <module>
-    from dataset.ev_uav import EvUAV
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/dataset/ev_uav.py", line 5, in <module>
-    from dataset.basedataset import BaseDataLoader
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/dataset/basedataset.py", line 5, in <module>
-    import spconv.pytorch as spconv
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv/spconv/pytorch/__init__.py", line 7, in <module>
-    from spconv.pytorch.core import SparseConvTensor
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv/spconv/pytorch/core.py", line 19, in <module>
-    from spconv.core import ConvAlgo
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv/spconv/core.py", line 22, in <module>
-    from spconv.constants import NDIM_DONT_CARE, SPCONV_INT8_DEBUG
-  File "/mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv/spconv/constants.py", line 63, in <module>
-    SPCONV_DEBUG_CPP_ONLY = project_is_editable(PACKAGE_NAME)
-                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pccm/utils.py", line 15, in project_is_editable
-    raise ModuleNotFoundError(
-ModuleNotFoundError: spconv not found. you need to install it by pip.
+python -m pip show spconv
+Name: spconv
+Version: 2.3.8
+Summary: spatial sparse convolution
+Home-page: https://github.com/traveller59/spconv
+Author: Yan Yan
+Author-email: yanyan.sub@outlook.com
+License: Apache License 2.0
+Location: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages
+Editable project location: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv
+Requires: ccimport, cumm, fire, numpy, pccm, pybind11
+Required-by:
