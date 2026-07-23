@@ -6,3 +6,49 @@ python -m pip install -v --no-build-isolation -e .
 
 cd ../spconv
 python -m pip install -v --no-build-isolation -e .
+
+
+
+
+
+
+Using pip 26.1.2 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip (python 3.12)
+Obtaining file:///mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv
+  Running command Checking if build backend supports build_editable
+  Checking if build backend supports build_editable ... done
+  Running command Preparing editable metadata (pyproject.toml)
+  Traceback (most recent call last):
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py", line 389, in <module>
+      main()
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py", line 373, in main
+      json_out["return_val"] = hook(**hook_input["kwargs"])
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py", line 209, in prepare_metadata_for_build_editable
+      return hook(metadata_directory, config_settings)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/build_meta.py", line 486, in prepare_metadata_for_build_editable
+      return self.prepare_metadata_for_build_wheel(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/build_meta.py", line 380, in prepare_metadata_for_build_wheel
+      self.run_setup()
+    File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/build_meta.py", line 317, in run_setup
+      exec(code, locals())
+    File "<string>", line 15, in <module>
+  ModuleNotFoundError: No module named 'pccm'
+  error: subprocess-exited-with-error
+  
+  × Preparing editable metadata (pyproject.toml) did not run successfully.
+  │ exit code: 1
+  ╰─> No available output.
+  
+  note: This error originates from a subprocess, and is likely not a problem with pip.
+  full command: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/pip/_vendor/pyproject_hooks/_in_process/_in_process.py prepare_metadata_for_build_editable /tmp/tmpowmsrv95
+  cwd: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv
+  Preparing editable metadata (pyproject.toml) ... error
+error: metadata-generation-failed
+
+× Encountered error while generating package metadata.
+╰─> from file:///mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv
+
+note: This is an issue with the package mentioned above, not pip.
+hint: See above for details
