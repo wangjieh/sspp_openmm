@@ -1,6 +1,3 @@
-from . import build as _build
-from .core import ConvAlgo, AlgoHint
-from . import constants
-from .__version__ import __version__
-
-SPCONV_VERSION_NUMBERS = list(map(int, __version__.split(".")))
+python -c "import spconv; print('file=', spconv.__file__); print('origin=', spconv.__spec__.origin)"
+file= /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv/spconv/__init__.py
+origin= /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/spconv/spconv/__init__.py
