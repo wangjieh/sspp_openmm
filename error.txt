@@ -1,4 +1,4 @@
-"""SkySense++ HR UPerNet config for LOVE-DA with aux head and TTA."""
+"""SkySense++ HR UPerNet config for LOVE-DA semantic segmentation."""
 
 custom_imports = dict(imports=["sspp_mmseg"], allow_failed_imports=False)
 
@@ -15,8 +15,9 @@ log_level = "INFO"
 load_from = None
 resume = False
 
-data_root = "data/LOVE-DA"
-pretrained = "pretrain/skysensepp_release_hr.pth"
+data_root = "/mnt/htzzb2/EO_test/datasets/LOVE-DA"
+pretrained = "/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_hr.pth"
+work_dir = "/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/loveda_hr_upernet_20e_lr0.0001_512x512"
 dataset_type = "LoveDADataset"
 input_size = (512, 512)
 ignore_index = 255
@@ -81,28 +82,6 @@ test_pipeline = [
     dict(type="PackSegInputs", meta_keys=pack_meta_keys),
 ]
 
-img_ratios = [0.75, 1.0, 1.25, 1.5]
-tta_model = dict(type="SegTTAModel")
-tta_pipeline = [
-    dict(type="LoveDALoadImageFromRasterio"),
-    dict(
-        type="TestTimeAug",
-        transforms=[
-            [
-                dict(type="Resize", scale_factor=ratio, keep_ratio=True)
-                for ratio in img_ratios
-            ],
-            [
-                dict(type="RandomFlip", prob=0.0, direction="horizontal"),
-                dict(type="RandomFlip", prob=1.0, direction="horizontal"),
-                dict(type="RandomFlip", prob=1.0, direction="vertical"),
-            ],
-            [
-                dict(type="PackSegInputs", meta_keys=pack_meta_keys),
-            ],
-        ]),
-]
-
 train_dataloader = dict(
     batch_size=8,
     num_workers=4,
@@ -113,13 +92,13 @@ train_dataloader = dict(
         data_root=data_root,
         metainfo=metainfo,
         data_prefix=dict(
-            img_path="img_dir/train",
-            seg_map_path="ann_dir/train",
+            img_path="img_dir/train_slice",
+            seg_map_path="ann_dir/train_slice",
         ),
         pipeline=train_pipeline))
 val_dataloader = dict(
-    batch_size=1,
-    num_workers=2,
+    batch_size=8,
+    num_workers=4,
     persistent_workers=True,
     sampler=dict(type="DefaultSampler", shuffle=False),
     dataset=dict(
@@ -127,29 +106,30 @@ val_dataloader = dict(
         data_root=data_root,
         metainfo=metainfo,
         data_prefix=dict(
-            img_path="img_dir/val",
-            seg_map_path="ann_dir/val",
+            img_path="img_dir/val_slice",
+            seg_map_path="ann_dir/val_slice",
         ),
         pipeline=val_pipeline))
 test_dataloader = dict(
-    batch_size=1,
-    num_workers=2,
+    batch_size=8,
+    num_workers=4,
     persistent_workers=True,
     sampler=dict(type="DefaultSampler", shuffle=False),
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
         metainfo=metainfo,
-        data_prefix=dict(img_path="img_dir/test"),
+        data_prefix=dict(img_path="img_dir/test_slice"),
         pipeline=test_pipeline,
         test_mode=True))
 
-val_evaluator = dict(type="IoUMetric", iou_metrics=["mIoU"])
+val_evaluator = dict(type="IoUMetric", iou_metrics=["mIoU", "mFscore"])
 test_evaluator = dict(
     type="IoUMetric",
     iou_metrics=["mIoU"],
     format_only=True,
-    output_dir="work_dirs/loveda_hr_upernet_aux_tta_20e_512x512/test_results")
+    # output_dir="work_dirs/loveda_hr_upernet_20e_512x512/test_results"
+    )
 
 model = dict(
     type="EncoderDecoder",
@@ -176,22 +156,6 @@ model = dict(
             type="CrossEntropyLoss",
             use_sigmoid=False,
             loss_weight=1.0)),
-    auxiliary_head=dict(
-        type="FCNHead",
-        in_channels=1408,
-        in_index=2,
-        channels=256,
-        num_convs=1,
-        concat_input=False,
-        dropout_ratio=0.1,
-        num_classes=num_classes,
-        norm_cfg=norm_cfg,
-        align_corners=False,
-        ignore_index=ignore_index,
-        loss_decode=dict(
-            type="CrossEntropyLoss",
-            use_sigmoid=False,
-            loss_weight=0.4)),
     train_cfg=dict(),
     test_cfg=dict(mode="whole"))
 
@@ -235,3 +199,295 @@ visualizer = dict(
     name="visualizer")
 auto_scale_lr = dict(enable=False, base_batch_size=8)
 randomness = dict(seed=0, deterministic=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import os
+
+_base_ = ['../../../../../configs/_base_/default_runtime.py']
+custom_imports = dict(
+    imports=[
+        "projects.dinov3.LoveDA.dinov3",
+        "projects.olmoearth.svdt.olmoearth"
+    ],
+    allow_failed_imports=False,
+)
+
+ignore_index = 255
+num_classes = 7
+crop_size = 512
+patch_size = 4
+swin_huge_channels = [352, 704, 1408, 2816]
+dataset_type = 'LoveDADataset'
+
+# Accept either an extracted pure backbone state_dict or the merged DINOv3
+# distillation checkpoint. The wrapper prefers model_ema.backbone weights.
+swin_huge_checkpoint = os.path.join(
+    os.environ.get('MM_ARCHIVE_CKPT_HOME'), 
+    'swin-distill', 
+    '30999', 
+    'swintransformer-huge.pt'
+)
+data_root = '/mnt/ht2-nas2/EO_test/dataset/2021LoveDA/'
+
+train_pipeline = [
+    dict(type="LoadImageFromFile", to_float32=True),
+    dict(type="LoadAnnotations"),
+    dict(
+        type="RandomCrop",
+        crop_size=(crop_size, crop_size),
+        cat_max_ratio=0.75,
+    ),
+    dict(
+        type="RandomRotate",
+        prob=0.5,
+        degree=90,
+        pad_val=0,
+        seg_pad_val=ignore_index,
+    ),
+    dict(type="RandomFlip", prob=0.5, direction="horizontal"),
+    dict(type="RandomFlip", prob=0.5, direction="vertical"),
+    dict(type="PackSegInputs"),
+]
+
+val_pipeline = [
+    dict(type="LoadImageFromFile", to_float32=True),
+    dict(type="LoadAnnotations"),
+    dict(type="PackSegInputs"),
+]
+
+train_dataloader = dict(
+    batch_size=16,
+    num_workers=4,
+    persistent_workers=True,
+    sampler=dict(type="DefaultSampler", shuffle=True),
+    dataset=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_prefix=dict(
+            img_path="img_dir/train",
+            seg_map_path="ann_dir/train",
+        ),
+        ignore_index=ignore_index,
+        reduce_zero_label=True,
+        pipeline=train_pipeline,
+    ),
+)
+
+val_dataloader = dict(
+    batch_size=16,
+    num_workers=4,
+    persistent_workers=True,
+    sampler=dict(type="DefaultSampler", shuffle=False),
+    dataset=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_prefix=dict(
+            img_path="img_dir/val",
+            seg_map_path="ann_dir/val",
+        ),
+        ignore_index=ignore_index,
+        reduce_zero_label=True,
+        pipeline=val_pipeline,
+    ),
+)
+
+test_pipeline = [
+    dict(type="LoadImageFromFile", to_float32=True),
+    dict(type="PackSegInputs"),   # 没有 seg 字段时，PackSegInputs 会安全跳过
+]
+
+test_dataloader = dict(
+    batch_size=16,
+    num_workers=4,
+    persistent_workers=True,
+    sampler=dict(type="DefaultSampler", shuffle=False),
+    dataset=dict(
+        type=dataset_type,                # 保持与训练/验证相同的 Dataset 类
+        data_root=data_root,
+        data_prefix=dict(
+            img_path="img_dir/test",      # 请根据实际测试图像路径修改
+            # seg_map_path 不提供，或显式设为 None
+        ),
+        ignore_index=ignore_index,        # 即使没有标注，这些参数仍保留（不影响）
+        reduce_zero_label=True,
+        pipeline=test_pipeline,
+    ),
+)
+
+val_evaluator = dict(
+    type="OlmoEarthIoUMetric",
+    num_classes=num_classes,
+    iou_metrics=["mIoU", "mFscore"],
+    ignore_index=ignore_index,
+    use_valid_mask=False,
+)
+
+test_evaluator = dict(
+    type='IoUMetric',
+    iou_metrics=['mIoU'],
+    format_only=True,
+    keep_results=True,
+    output_dir=os.path.join(os.environ.get('WORK_DIR'), 'Result')
+)
+
+data_preprocessor = dict(
+    type="SegDataPreProcessor",
+    mean=[76.19, 78.34, 71.53],
+    std=[33.65, 34.96, 38.84],
+    bgr_to_rgb=True,
+    pad_val=0,
+    seg_pad_val=ignore_index,
+    size_divisor=32,
+    test_cfg=dict(size_divisor=32),
+)
+norm_cfg = dict(type="SyncBN", requires_grad=True)
+model = dict(
+    type="EncoderDecoder",
+    data_preprocessor=data_preprocessor,
+    backbone=dict(
+        type="DINOv3DistilledSwinHuge",
+        checkpoint=swin_huge_checkpoint,
+        img_size=crop_size,
+        patch_size=patch_size,
+        window_size=8,
+        out_indices=(0, 1, 2, 3),
+        use_ema=True,
+        frozen=False,
+    ),
+    decode_head=dict(
+        type="UPerHead",
+        in_channels=swin_huge_channels,
+        in_index=[0, 1, 2, 3],
+        pool_scales=(1, 2, 3, 6),
+        channels=512,
+        dropout_ratio=0.1,
+        num_classes=num_classes,
+        ignore_index=ignore_index,
+        align_corners=False,
+        loss_decode=dict(
+            type="CrossEntropyLoss",
+            use_sigmoid=False,
+            loss_weight=1.0,
+        ),
+        norm_cfg=norm_cfg
+    ),
+    auxiliary_head=dict(
+        type="FCNHead",
+        in_channels=1408,
+        in_index=2,
+        channels=512,
+        num_convs=1,
+        concat_input=False,
+        dropout_ratio=0.1,
+        num_classes=num_classes,
+        ignore_index=ignore_index,
+        align_corners=False,
+        loss_decode=dict(
+            type="CrossEntropyLoss",
+            use_sigmoid=False,
+            loss_weight=0.4,
+        ),
+        norm_cfg=norm_cfg
+    ),
+    test_cfg=dict(
+        mode="slide",
+        crop_size=(crop_size, crop_size),
+        stride=(crop_size // 2, crop_size // 2),
+    ),
+    train_cfg=dict()
+)
+
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(
+        type='AdamW',
+        lr=1e-4,
+        weight_decay=0.05),
+    paramwise_cfg=dict(
+        custom_keys={
+            "backbone": dict(lr_mult=0.1, decay_mult=1.0)
+        }
+    ),
+    clip_grad=dict(max_norm=35, norm_type=2))
+
+param_scheduler = [
+    dict(
+        type='LinearLR',
+        start_factor=1.0 / 3,
+        by_epoch=True,
+        begin=0,
+        end=5),
+    dict(
+        type='MultiStepLR',
+        begin=5,
+        end=50,
+        by_epoch=True,
+        milestones=[60, 80],
+        gamma=0.1),
+]
+
+train_cfg = dict(type="EpochBasedTrainLoop", max_epochs=50, val_interval=10)
+val_cfg = dict(type="ValLoop")
+test_cfg = dict(type="TestLoop")
+
+default_hooks = dict(
+    timer=dict(type="IterTimerHook"),
+    logger=dict(type="LoggerHook", interval=100, log_metric_by_epoch=True),
+    param_scheduler=dict(type="ParamSchedulerHook"),
+    checkpoint=dict(
+        type="CheckpointHook",
+        by_epoch=True,
+        interval=10,
+        save_best="mIoU",
+        rule="greater",
+        max_keep_ckpts=3,
+    ),
+    sampler_seed=dict(type="DistSamplerSeedHook"),
+    visualization=dict(type="SegVisualizationHook"),
+)
+vis_backends = [dict(type='LocalVisBackend')]
+visualizer = dict(
+    type='CustomSegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+
+env_cfg = dict(
+    cudnn_benchmark=True,
+    mp_cfg=dict(mp_start_method="fork", opencv_num_threads=0),
+    dist_cfg=dict(backend="nccl"),
+)
+
+default_scope = "mmseg"
+log_level = "INFO"
+load_from = None
+resume = False
+auto_scale_lr = dict(enable=False, base_batch_size=4)
