@@ -1,57 +1,60 @@
-/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/decode_heads/decode_head.py:120: UserWarning: For binary segmentation, we suggest using`out_channels = 1` to define the outputchannels of segmentor, and use `threshold`to convert `seg_logits` into a predictionapplying a threshold
-  warnings.warn('For binary segmentation, we suggest using'
-[rank0]: Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/opencd_tools/train.py", line 104, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/opencd_tools/train.py", line 93, in main
-[rank0]:     runner = Runner.from_cfg(cfg)
-[rank0]:              ^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 462, in from_cfg
-[rank0]:     runner = cls(
-[rank0]:              ^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 429, in __init__
-[rank0]:     self.model = self.build_model(model)
-[rank0]:                  ^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 836, in build_model
-[rank0]:     model = MODELS.build(model)
-[rank0]:             ^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank0]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
-[rank0]:     return build_from_cfg(cfg, registry, default_args)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank0]:     obj = obj_cls(**args)  # type: ignore
-[rank0]:           ^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/swin_opencd/models/change_detectors/dual_swin_absdiff_upernet.py", line 46, in __init__
-[rank0]:     super().__init__(backbone=opt_backbone, **kwargs)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/open-cd-olmoearth/opencd/models/change_detectors/siamencoder_decoder.py", line 97, in __init__
-[rank0]:     self._init_decode_head(decode_head)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/open-cd-olmoearth/opencd/models/change_detectors/siamencoder_decoder.py", line 108, in _init_decode_head
-[rank0]:     self.decode_head = MODELS.build(decode_head)
-[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank0]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
-[rank0]:     return build_from_cfg(cfg, registry, default_args)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank0]:     obj = obj_cls(**args)  # type: ignore
-[rank0]:           ^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/decode_heads/uper_head.py", line 25, in __init__
-[rank0]:     super().__init__(input_transform='multiple_select', **kwargs)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/decode_heads/decode_head.py", line 143, in __init__
-[rank0]:     self.loss_decode = MODELS.build(loss_decode)
-[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank0]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
-[rank0]:     return build_from_cfg(cfg, registry, default_args)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank0]:     obj = obj_cls(**args)  # type: ignore
-[rank0]:           ^^^^^^^^^^^^^^^
-[rank0]: TypeError: IgnoreAwareCrossEntropyLoss.__init__() got an unexpected keyword argument 'use_sigmoid'
+# calc_normalization.py
+import argparse
+from pathlib import Path
+
+import numpy as np
+import rasterio
+from tqdm import tqdm
+
+
+IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.tif', '.tiff'}
+
+
+def main():
+    parser = argparse.ArgumentParser(description='计算图像归一化参数')
+    parser.add_argument('--img-dir', type=Path, required=True)
+    args = parser.parse_args()
+
+    paths = [
+        p for p in args.img_dir.rglob('*')
+        if p.is_file() and p.suffix.lower() in IMAGE_EXTS
+    ]
+    if not paths:
+        raise FileNotFoundError('未找到 jpg/png/tif/tiff 图像。')
+
+    total = total_sq = count = None
+
+    for path in tqdm(paths, desc='统计图像'):
+        with rasterio.open(path) as src:
+            image = src.read(masked=True)  # [C, H, W]，自动掩膜 nodata
+
+        if total is None:
+            channels = image.shape[0]
+            total = np.zeros(channels, dtype=np.float64)
+            total_sq = np.zeros(channels, dtype=np.float64)
+            count = np.zeros(channels, dtype=np.int64)
+        elif image.shape[0] != len(total):
+            raise ValueError(
+                f'通道数不一致：{path} 为 {image.shape[0]} 通道，'
+                f'预期为 {len(total)} 通道。')
+
+        for c in range(image.shape[0]):
+            values = image[c].compressed().astype(np.float64)
+            total[c] += values.sum()
+            total_sq[c] += np.square(values).sum()
+            count[c] += values.size
+
+    mean = total / count
+    var = np.maximum(total_sq / count - mean ** 2, 0)
+    std = np.sqrt(var)
+
+    print('\n统计完成')
+    print(f'图像数量: {len(paths)}')
+    print(f'通道数: {len(mean)}')
+    print(f'mean: {mean.tolist()}')
+    print(f'var:  {var.tolist()}')
+    print(f'std:  {std.tolist()}')
+
+
+if __name__ == '__main__':
+    main()
