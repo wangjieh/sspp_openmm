@@ -1,250 +1,243 @@
-import os
-import random
+"""SkySense++ S1/S2 abs-diff UPerNet config for BRIGHT."""
+evaluation=dict(tmpdir="/mnt/htzzb2/EO_test/wj1/tmp")  # 更改验证时的临时目录
 
-import mlflow
-import numpy as np
-import torch
-import torch.optim as optim
-import tqdm
+default_scope = "opencd"
+custom_imports = dict(imports=["sspp_opencd"], allow_failed_imports=False)
 
-from configs.configs import cfg
-from dataset.ev_uav import EvUAV
-from model.evspsegnet import evspsegnet
-from utils.eval import evalute
-from utils.stcloss import STCLoss
+data_root = "/mnt/htzzb2/EO_test/datasets/BRIGHT"
+pretrained_s2 = "/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s2.pth"
+pretrained_s1 = "/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s1.pth"
+work_dir = "/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/bright_s1s2_absdiff_upernet_20e_128x128"
 
+input_size = (128, 128)
+num_classes = 2
+batch_size = 4
+max_epochs = 20
+base_lr = 5e-4
+ignore_index = 255
+in_channels = 12
+feature_channels = [1024, 1024, 1024, 1024]
+norm_cfg = dict(type="SyncBN", requires_grad=True)
 
-def setup(seed):
-    print(f"random seed: {seed}")
+opt_mean = (88.674, 85.027, 76.558)
+opt_std = (67.434, 58.458, 53.972)
+sar_mean = (56.630, )
+sar_std = (45.191, )
 
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+model_wrapper_cfg = dict(
+    type="MMDistributedDataParallel",
+    find_unused_parameters=True,
+)
+find_unused_parameters = True
 
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.enabled = False
+data_preprocessor = dict(
+    type="DualInputSegDataPreProcessor",
+    mean=[0.0] * in_channels,
+    std=[1.0] * in_channels,
+    bgr_to_rgb=False,
+    size=input_size,
+    pad_val=0,
+    seg_pad_val=ignore_index,
+    test_cfg=dict(size=input_size),
+)
 
-    torch.use_deterministic_algorithms(True)
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
-    os.environ["PYTHONHASHSEED"] = str(seed)
+model = dict(
+    type="SkySensePPDualBranchAbsDiffEncoderDecoder",
+    data_preprocessor=data_preprocessor,
+    input_split=(10, 2),
+    pyramid_scales=(1.0, 0.5, 0.25, 0.125),
+    opt_backbone=dict(
+        type="SkySensePPS2",
+        in_channels=10,
+        img_size=16,
+        patch_size=4,
+        out_indices=(5, 11, 17, 23),
+        with_cp=False,
+        init_cfg=dict(type="Pretrained", checkpoint=pretrained_s2),
+    ),
+    sar_backbone=dict(
+        type="SkySensePPS1",
+        in_channels=2,
+        img_size=16,
+        patch_size=4,
+        out_indices=(5, 11, 17, 23),
+        with_cp=False,
+        init_cfg=dict(type="Pretrained", checkpoint=pretrained_s1),
+    ),
+    decode_head=dict(
+        type="mmseg.UPerHead",
+        in_channels=feature_channels,
+        in_index=[0, 1, 2, 3],
+        pool_scales=(1, 2, 3, 6),
+        channels=512,
+        dropout_ratio=0.1,
+        num_classes=num_classes,
+        norm_cfg=norm_cfg,
+        align_corners=False,
+        ignore_index=ignore_index,
+        loss_decode=dict(
+            type="mmseg.CrossEntropyLoss",
+            use_sigmoid=False,
+            loss_weight=1.0,
+        ),
+    ),
+    train_cfg=dict(),
+    test_cfg=dict(mode="whole"),
+)
 
+dataset_type = "BRIGHTDataset"
 
-def linear_lr_lambda(epoch):
-    """
-    线性学习率衰减：
-    epoch 0          : 1.0 * lr，即 1e-2
-    epoch epochs - 1 : 0.1 * lr，即 1e-3
-    """
-    if cfg.epochs <= 1:
-        return 1.0
+pack_meta_keys = (
+    "img_path",
+    "seg_map_path",
+    "ori_shape",
+    "img_shape",
+    "pad_shape",
+    "scale_factor",
+    "flip",
+    "flip_direction",
+    "bright_opt_present_channels",
+    "bright_sar_present_channels",
+    "bright_present_channels",
+)
 
-    progress = min(epoch, cfg.epochs - 1) / (cfg.epochs - 1)
-    return 1.0 - 0.9 * progress
+load_bright = dict(
+    type="BRIGHTLoadRasterio",
+    opt_channel_indices=(2, 1, 0),
+    sar_channel_indices=(0, ),
+    output_channels=(10, 2),
+    opt_mean=opt_mean,
+    opt_std=opt_std,
+    sar_mean=sar_mean,
+    sar_std=sar_std,
+)
 
+train_pipeline = [
+    load_bright,
+    dict(type="MultiImgRandomFlip", prob=0.5, direction="horizontal"),
+    dict(type="MultiImgRandomFlip", prob=0.5, direction="vertical"),
+    dict(type="MultiImgPackSegInputs", meta_keys=pack_meta_keys),
+]
 
-def official_score(pd, fa, iou, acc):
-    score_fa = np.exp(-10000.0 * fa)
-    score = 0.4 * pd + 0.3 * score_fa + 0.2 * iou + 0.1 * acc
-    return score, score_fa
+test_pipeline = [
+    load_bright,
+    dict(type="MultiImgPackSegInputs", meta_keys=pack_meta_keys),
+]
 
+train_dataloader = dict(
+    batch_size=batch_size,
+    num_workers=4,
+    persistent_workers=True,
+    sampler=dict(type="DefaultSampler", shuffle=True),
+    dataset=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_prefix=dict(
+            img_path_from="train/pre-event",
+            img_path_to="train/post-event",
+            seg_map_path="train/target",
+        ),
+        pipeline=train_pipeline,
+    ),
+)
 
-if __name__ == "__main__":
-    seed = 37
-    setup(seed)
+val_dataloader = dict(
+    batch_size=1,
+    num_workers=4,
+    persistent_workers=True,
+    sampler=dict(type="DefaultSampler", shuffle=False),
+    dataset=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_prefix=dict(
+            img_path_from="val/pre-event",
+            img_path_to="val/post-event",
+            seg_map_path="val/target",
+        ),
+        pipeline=test_pipeline,
+    ),
+)
 
-    os.makedirs(cfg.model_save_root, exist_ok=True)
+test_dataloader = val_dataloader
 
-    # 若 YAML 未设置 val_thresh，则默认使用官方工具包中的 0.9。
-    val_thresh = getattr(cfg, "val_thresh", 0.9)
+val_evaluator = dict(type="mmseg.IoUMetric", iou_metrics=["mFscore", "mIoU"])
+test_evaluator = val_evaluator
 
-    net = evspsegnet(cfg).cuda()
+optim_wrapper = dict(
+    type="OptimWrapper",
+    optimizer=dict(
+        type="AdamW",
+        lr=base_lr,
+        betas=(0.9, 0.999),
+        weight_decay=0.01,
+    ),
+    clip_grad=dict(max_norm=1.0, norm_type=2),
+)
 
-    train_dataset = EvUAV(cfg, mode="train")
-    train_sampler = torch.utils.data.RandomSampler(
-        list(range(len(train_dataset)))
-    )
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=cfg.batch_size,
-        collate_fn=train_dataset.custom_collate,
-        sampler=train_sampler,
-    )
+param_scheduler = [
+    dict(
+        type="LinearLR",
+        start_factor=1e-6,
+        by_epoch=False,
+        begin=0,
+        end=1500,
+    ),
+    dict(
+        type="PolyLR",
+        eta_min=0.0,
+        power=1.0,
+        begin=0,
+        end=max_epochs,
+        by_epoch=True,
+    ),
+]
 
-    val_dataset = EvUAV(cfg, mode="val")
-    val_dataloader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=cfg.batch_size,
-        collate_fn=val_dataset.custom_collate,
-        shuffle=False,
-    )
+train_cfg = dict(
+    type="EpochBasedTrainLoop",
+    max_epochs=max_epochs,
+    val_interval=1,
+)
+val_cfg = dict(type="ValLoop")
+test_cfg = dict(type="TestLoop")
 
-    stc_criterion = STCLoss(k=cfg.k, t=cfg.t, cfg=cfg).cuda()
+default_hooks = dict(
+    timer=dict(type="IterTimerHook"),
+    logger=dict(type="LoggerHook", interval=50, log_metric_by_epoch=True),
+    param_scheduler=dict(type="ParamSchedulerHook"),
+    checkpoint=dict(
+        type="CheckpointHook",
+        by_epoch=True,
+        interval=1,
+        max_keep_ckpts=3,
+        save_best="mIoU",
+        rule="greater",
+    ),
+    sampler_seed=dict(type="DistSamplerSeedHook"),
+    visualization=dict(
+        type="CDVisualizationHook",
+        interval=1,
+        img_shape=(*input_size, 3),
+    ),
+)
 
-    optimizer = optim.Adam(
-        filter(lambda parameter: parameter.requires_grad, net.parameters()),
-        lr=cfg.lr,
-    )
+env_cfg = dict(
+    cudnn_benchmark=True,
+    mp_cfg=dict(mp_start_method="fork", opencv_num_threads=0),
+    dist_cfg=dict(backend="nccl"),
+)
 
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lr_lambda=linear_lr_lambda,
-    )
+vis_backends = [dict(type="LocalVisBackend")]
+visualizer = dict(
+    type="CDLocalVisualizer",
+    vis_backends=vis_backends,
+    name="visualizer",
+)
 
-    best_loss = float("inf")
-    best_iou = -float("inf")
-    best_score = -float("inf")
+log_processor = dict(type="LogProcessor", window_size=50, by_epoch=True)
+log_level = "INFO"
+load_from = None
+resume = False
 
-    mlflow.set_experiment("train")
-    mlflow.start_run(run_name=f"train_seed{seed}")
+tta_model = dict(type="mmseg.SegTTAModel")
 
-    for epoch in range(cfg.epochs):
-        # ==================== Train ====================
-        net.train()
-        epoch_losses = []
-
-        current_lr = optimizer.param_groups[0]["lr"]
-
-        pbar = tqdm.tqdm(
-            total=len(train_dataloader),
-            unit="Batch",
-            unit_scale=True,
-            desc=f"Epoch {epoch + 1}/{cfg.epochs}",
-            position=0,
-            leave=True,
-        )
-
-        for ev in train_dataloader:
-            x = ev["voxel_ev"]
-            label = ev["seg_label"].float().cuda()
-            p2v_map = ev["p2v_map"].long().cuda()
-
-            preds, voxel = net(x)
-            loss = stc_criterion(voxel, p2v_map, preds, label)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            loss_value = loss.item()
-            epoch_losses.append(loss_value)
-
-            pbar.set_postfix(
-                loss=f"{loss_value:.6f}",
-                lr=f"{current_lr:.2e}",
-            )
-            pbar.update(1)
-
-            mlflow.log_metric("train_batch_loss", loss_value)
-
-            if loss_value < best_loss:
-                torch.save(
-                    net.state_dict(),
-                    os.path.join(
-                        cfg.model_save_root,
-                        f"best_loss_seed{seed}.pt",
-                    ),
-                )
-                best_loss = loss_value
-
-            torch.cuda.empty_cache()
-
-        pbar.close()
-
-        mean_train_loss = float(np.mean(epoch_losses))
-        mlflow.log_metric("train_epoch_loss", mean_train_loss, step=epoch)
-        mlflow.log_metric("learning_rate", current_lr, step=epoch)
-
-        # ==================== Validation ====================
-        # 每一轮都验证；必须切换到 eval 模式，防止验证集更新 BatchNorm。
-        net.eval()
-        evaluator = evalute(cfg)
-
-        with torch.no_grad():
-            for sample, ev in enumerate(val_dataloader):
-                x = ev["voxel_ev"]
-                label = ev["seg_label"].float().cuda()
-                p2v_map = ev["p2v_map"].long().cuda()
-
-                # locs 保持在 CPU，供 Pd/Fa 的 NumPy/OpenCV 计算使用。
-                ev_locs = ev["locs"].float()
-                idx = ev["idx_label"]
-                ts = ev_locs[:, 3]
-
-                preds, voxel = net(x)
-                preds = preds[p2v_map].squeeze().cpu()
-                label_cpu = label.cpu()
-
-                evaluator.matches[str(sample)] = {}
-                evaluator.matches[str(sample)]["seg_pred"] = preds
-                evaluator.matches[str(sample)]["seg_gt"] = label_cpu
-
-                if cfg.roc:
-                    evaluator.roc_update(
-                        ts=ts,
-                        preds=preds,
-                        idx=idx,
-                        label=label_cpu,
-                        ev_locs=ev_locs,
-                        thresh=val_thresh,
-                    )
-
-        iou = evaluator.evaluate_semantic_segmantation_miou(
-            thresh=val_thresh
-        ).item()
-        acc = evaluator.evaluate_semantic_segmantation_accuracy(
-            thresh=val_thresh
-        ).item()
-
-        mlflow.log_metric("val_iou", iou, step=epoch)
-        mlflow.log_metric("val_acc", acc, step=epoch)
-
-        message = (
-            f"Validation | epoch={epoch + 1:03d} | "
-            f"loss={mean_train_loss:.6f} | "
-            f"lr={current_lr:.2e} | "
-            f"IoU={iou:.4f} | Acc={acc:.4f}"
-        )
-
-        if iou > best_iou:
-            torch.save(
-                net.state_dict(),
-                os.path.join(
-                    cfg.model_save_root,
-                    f"best_iou_seed{seed}.pt",
-                ),
-            )
-            best_iou = iou
-
-        if cfg.roc:
-            pd, fa = evaluator.cal_roc()
-            score, score_fa = official_score(pd, fa, iou, acc)
-
-            mlflow.log_metric("val_pd", pd, step=epoch)
-            mlflow.log_metric("val_fa", fa, step=epoch)
-            mlflow.log_metric("val_score_fa", score_fa, step=epoch)
-            mlflow.log_metric("val_official_score", score, step=epoch)
-
-            message += (
-                f" | Pd={pd:.4f} | Fa={fa:.4e} | "
-                f"Score={score:.4f}"
-            )
-
-            if score > best_score:
-                torch.save(
-                    net.state_dict(),
-                    os.path.join(
-                        cfg.model_save_root,
-                        f"best_score_seed{seed}.pt",
-                    ),
-                )
-                best_score = score
-
-        print(message)
-
-        # 为下一 epoch 更新学习率。
-        scheduler.step()
-
-    mlflow.end_run()
+auto_scale_lr = dict(enable=False, base_batch_size=batch_size)
