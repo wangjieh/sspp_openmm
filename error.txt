@@ -1,39 +1,33 @@
-"""SkySense++ S1/S2 abs-diff UPerNet config for BRIGHT."""
-evaluation=dict(tmpdir="/mnt/htzzb2/EO_test/wj1/tmp")  # 更改验证时的临时目录
+evaluation=dict(tmpdir='/mnt/htzzb2/EO_test/wj1/tmp')
+find_unused_parameters=False
+work_dir="/mnt/htzzb2/EO_test/wj1/swin_work_dirs/bright_dual_swin_huge_upernet_ft_backbone_lr_mult_0p1_50e_128x128_8ka"
 
 default_scope = "opencd"
-custom_imports = dict(imports=["sspp_opencd"], allow_failed_imports=False)
+custom_imports = dict(imports=["swin_opencd"], allow_failed_imports=False)
 
 data_root = "/mnt/htzzb2/EO_test/datasets/BRIGHT"
-pretrained_s2 = "/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s2.pth"
-pretrained_s1 = "/mnt/ht2-nas2/EO_test/weights/skysensepp/for_finetuning/skysensepp_release_s1.pth"
-work_dir = "/mnt/htzzb2/EO_test/wj1/sspp_work_dirs/bright_s1s2_absdiff_upernet_20e_128x128"
+swin_huge_checkpoint = "/mnt/htzzb2/EO_test/wj1/swin_self_developed_weights/swin_huge_openmm_style.pth"
 
 input_size = (128, 128)
 num_classes = 2
-batch_size = 4
-max_epochs = 20
-base_lr = 5e-4
+batch_size = 32
+max_epochs = 50
+base_lr = 1e-4
+weight_decay = 0.01
 ignore_index = 255
-in_channels = 12
-feature_channels = [1024, 1024, 1024, 1024]
+in_channels = 4
+feature_channels = [352, 704, 1408, 2816]
 norm_cfg = dict(type="SyncBN", requires_grad=True)
-
-opt_mean = (88.674, 85.027, 76.558)
-opt_std = (67.434, 58.458, 53.972)
-sar_mean = (56.630, )
-sar_std = (45.191, )
 
 model_wrapper_cfg = dict(
     type="MMDistributedDataParallel",
-    find_unused_parameters=True,
+    find_unused_parameters=False,
 )
-find_unused_parameters = True
 
 data_preprocessor = dict(
     type="DualInputSegDataPreProcessor",
-    mean=[0.0] * in_channels,
-    std=[1.0] * in_channels,
+    mean=[88.674, 85.027, 76.558, 56.630],
+    std=[67.434, 58.458, 53.972, 45.191],
     bgr_to_rgb=False,
     size=input_size,
     pad_val=0,
@@ -41,29 +35,37 @@ data_preprocessor = dict(
     test_cfg=dict(size=input_size),
 )
 
+swin_huge_backbone = dict(
+    type="mmseg.SwinTransformer",
+    pretrain_img_size=128,
+    in_channels=3,
+    embed_dims=352,
+    patch_size=4,
+    window_size=8,
+    mlp_ratio=4,
+    depths=(2, 2, 18, 2),
+    num_heads=(8, 16, 32, 64),
+    strides=(4, 2, 2, 2),
+    out_indices=(0, 1, 2, 3),
+    qkv_bias=True,
+    patch_norm=True,
+    drop_rate=0.0,
+    attn_drop_rate=0.0,
+    drop_path_rate=0.2,
+    use_abs_pos_embed=False,
+    norm_cfg=dict(type="LN"),
+    with_cp=False,
+    frozen_stages=-1,
+    init_cfg=dict(type="Pretrained", checkpoint=swin_huge_checkpoint),
+)
+
 model = dict(
-    type="SkySensePPDualBranchAbsDiffEncoderDecoder",
+    type="DualSwinAbsDiffUPerNet",
     data_preprocessor=data_preprocessor,
-    input_split=(10, 2),
-    pyramid_scales=(1.0, 0.5, 0.25, 0.125),
-    opt_backbone=dict(
-        type="SkySensePPS2",
-        in_channels=10,
-        img_size=16,
-        patch_size=4,
-        out_indices=(5, 11, 17, 23),
-        with_cp=False,
-        init_cfg=dict(type="Pretrained", checkpoint=pretrained_s2),
-    ),
-    sar_backbone=dict(
-        type="SkySensePPS1",
-        in_channels=2,
-        img_size=16,
-        patch_size=4,
-        out_indices=(5, 11, 17, 23),
-        with_cp=False,
-        init_cfg=dict(type="Pretrained", checkpoint=pretrained_s1),
-    ),
+    opt_backbone=swin_huge_backbone,
+    sar_backbone=swin_huge_backbone,
+    input_split=(3, 1),
+    freeze_backbones=False,
     decode_head=dict(
         type="mmseg.UPerHead",
         in_channels=feature_channels,
@@ -96,20 +98,11 @@ pack_meta_keys = (
     "scale_factor",
     "flip",
     "flip_direction",
-    "bright_opt_present_channels",
-    "bright_sar_present_channels",
-    "bright_present_channels",
 )
 
 load_bright = dict(
     type="BRIGHTLoadRasterio",
-    opt_channel_indices=(2, 1, 0),
-    sar_channel_indices=(0, ),
-    output_channels=(10, 2),
-    opt_mean=opt_mean,
-    opt_std=opt_std,
-    sar_mean=sar_mean,
-    sar_std=sar_std,
+    opt_channels=(0, 1, 2),
 )
 
 train_pipeline = [
@@ -132,6 +125,7 @@ train_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
+        ann_file=data_root+fr"/train.txt",
         data_prefix=dict(
             img_path_from="train/pre-event",
             img_path_to="train/post-event",
@@ -149,18 +143,20 @@ val_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
+        ann_file=data_root+fr"/val.txt",
         data_prefix=dict(
             img_path_from="val/pre-event",
             img_path_to="val/post-event",
             seg_map_path="val/target",
         ),
         pipeline=test_pipeline,
+        test_mode=True,
     ),
 )
 
 test_dataloader = val_dataloader
 
-val_evaluator = dict(type="mmseg.IoUMetric", iou_metrics=["mFscore", "mIoU"])
+val_evaluator = dict(type="mmseg.IoUMetric", iou_metrics=["mIoU", "mFscore"])
 test_evaluator = val_evaluator
 
 optim_wrapper = dict(
@@ -169,8 +165,13 @@ optim_wrapper = dict(
         type="AdamW",
         lr=base_lr,
         betas=(0.9, 0.999),
-        weight_decay=0.01,
+        weight_decay=weight_decay,
     ),
+    paramwise_cfg=dict(
+        custom_keys={
+            "backbone": dict(lr_mult=0.1),
+            "sar_backbone": dict(lr_mult=0.1),
+        }),
     clip_grad=dict(max_norm=1.0, norm_type=2),
 )
 
@@ -213,11 +214,7 @@ default_hooks = dict(
         rule="greater",
     ),
     sampler_seed=dict(type="DistSamplerSeedHook"),
-    visualization=dict(
-        type="CDVisualizationHook",
-        interval=1,
-        img_shape=(*input_size, 3),
-    ),
+    visualization=dict(type="CDVisualizationHook", draw=False, interval=1),
 )
 
 env_cfg = dict(
@@ -238,6 +235,16 @@ log_level = "INFO"
 load_from = None
 resume = False
 
-tta_model = dict(type="mmseg.SegTTAModel")
-
+randomness = dict(seed=0, deterministic=False)
 auto_scale_lr = dict(enable=False, base_batch_size=batch_size)
+
+# 自定义出推理图的钩子代码
+custom_imports = dict(
+    imports=['swin_opencd.hooks.save_raw_pred_hook'],
+    allow_failed_imports=False)
+    
+custom_hooks = [
+    dict(type='SaveRawPredHook',
+         output_dir=work_dir+fr"_infer",
+         scale255=False)
+]
