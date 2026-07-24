@@ -1,37 +1,250 @@
-STRUCTURE:
-  model_name: evissgnet
-  width: 12
-  block_residual: True
-  block_reps: 2
-  use_coords: True
+import os
+import random
 
-DATA:
-  input_channel: 4
-  root: /mnt/htzzb2/EO_test/datasets/www/track2_dataset
-  whole_t: 8000 #ms
-  res: [346,260]
+import mlflow
+import numpy as np
+import torch
+import torch.optim as optim
+import tqdm
 
-TRAIN:
-  epochs: 50
-  batch_size: 1
-  train_workers: 1
-  optim: Adam # Adam or SGD
-  lr: 0.001
-  k: 3
-  t: 5
-  max_events_num : 700000
-  model_save_root:  /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/log/model
-
-TEST:
-  vis: False
-  eval: False
-  roc: False
-  pd_detT: 50
-  correct_thresh: 0.0005
-  save: True
-  save_path: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/submission/track2_submission.zip
-  submit_thresh: 0.85
-  model_path: /mnt/ht2-nas2/EO_test/wj1/EV-UAV-main/log/model/best_iou_seed37.pt
+from configs.configs import cfg
+from dataset.ev_uav import EvUAV
+from model.evspsegnet import evspsegnet
+from utils.eval import evalute
+from utils.stcloss import STCLoss
 
 
+def setup(seed):
+    print(f"random seed: {seed}")
 
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.enabled = False
+
+    torch.use_deterministic_algorithms(True)
+    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+
+def linear_lr_lambda(epoch):
+    """
+    线性学习率衰减：
+    epoch 0          : 1.0 * lr，即 1e-2
+    epoch epochs - 1 : 0.1 * lr，即 1e-3
+    """
+    if cfg.epochs <= 1:
+        return 1.0
+
+    progress = min(epoch, cfg.epochs - 1) / (cfg.epochs - 1)
+    return 1.0 - 0.9 * progress
+
+
+def official_score(pd, fa, iou, acc):
+    score_fa = np.exp(-10000.0 * fa)
+    score = 0.4 * pd + 0.3 * score_fa + 0.2 * iou + 0.1 * acc
+    return score, score_fa
+
+
+if __name__ == "__main__":
+    seed = 37
+    setup(seed)
+
+    os.makedirs(cfg.model_save_root, exist_ok=True)
+
+    # 若 YAML 未设置 val_thresh，则默认使用官方工具包中的 0.9。
+    val_thresh = getattr(cfg, "val_thresh", 0.9)
+
+    net = evspsegnet(cfg).cuda()
+
+    train_dataset = EvUAV(cfg, mode="train")
+    train_sampler = torch.utils.data.RandomSampler(
+        list(range(len(train_dataset)))
+    )
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=cfg.batch_size,
+        collate_fn=train_dataset.custom_collate,
+        sampler=train_sampler,
+    )
+
+    val_dataset = EvUAV(cfg, mode="val")
+    val_dataloader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=cfg.batch_size,
+        collate_fn=val_dataset.custom_collate,
+        shuffle=False,
+    )
+
+    stc_criterion = STCLoss(k=cfg.k, t=cfg.t, cfg=cfg).cuda()
+
+    optimizer = optim.Adam(
+        filter(lambda parameter: parameter.requires_grad, net.parameters()),
+        lr=cfg.lr,
+    )
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        lr_lambda=linear_lr_lambda,
+    )
+
+    best_loss = float("inf")
+    best_iou = -float("inf")
+    best_score = -float("inf")
+
+    mlflow.set_experiment("train")
+    mlflow.start_run(run_name=f"train_seed{seed}")
+
+    for epoch in range(cfg.epochs):
+        # ==================== Train ====================
+        net.train()
+        epoch_losses = []
+
+        current_lr = optimizer.param_groups[0]["lr"]
+
+        pbar = tqdm.tqdm(
+            total=len(train_dataloader),
+            unit="Batch",
+            unit_scale=True,
+            desc=f"Epoch {epoch + 1}/{cfg.epochs}",
+            position=0,
+            leave=True,
+        )
+
+        for ev in train_dataloader:
+            x = ev["voxel_ev"]
+            label = ev["seg_label"].float().cuda()
+            p2v_map = ev["p2v_map"].long().cuda()
+
+            preds, voxel = net(x)
+            loss = stc_criterion(voxel, p2v_map, preds, label)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            loss_value = loss.item()
+            epoch_losses.append(loss_value)
+
+            pbar.set_postfix(
+                loss=f"{loss_value:.6f}",
+                lr=f"{current_lr:.2e}",
+            )
+            pbar.update(1)
+
+            mlflow.log_metric("train_batch_loss", loss_value)
+
+            if loss_value < best_loss:
+                torch.save(
+                    net.state_dict(),
+                    os.path.join(
+                        cfg.model_save_root,
+                        f"best_loss_seed{seed}.pt",
+                    ),
+                )
+                best_loss = loss_value
+
+            torch.cuda.empty_cache()
+
+        pbar.close()
+
+        mean_train_loss = float(np.mean(epoch_losses))
+        mlflow.log_metric("train_epoch_loss", mean_train_loss, step=epoch)
+        mlflow.log_metric("learning_rate", current_lr, step=epoch)
+
+        # ==================== Validation ====================
+        # 每一轮都验证；必须切换到 eval 模式，防止验证集更新 BatchNorm。
+        net.eval()
+        evaluator = evalute(cfg)
+
+        with torch.no_grad():
+            for sample, ev in enumerate(val_dataloader):
+                x = ev["voxel_ev"]
+                label = ev["seg_label"].float().cuda()
+                p2v_map = ev["p2v_map"].long().cuda()
+
+                # locs 保持在 CPU，供 Pd/Fa 的 NumPy/OpenCV 计算使用。
+                ev_locs = ev["locs"].float()
+                idx = ev["idx_label"]
+                ts = ev_locs[:, 3]
+
+                preds, voxel = net(x)
+                preds = preds[p2v_map].squeeze().cpu()
+                label_cpu = label.cpu()
+
+                evaluator.matches[str(sample)] = {}
+                evaluator.matches[str(sample)]["seg_pred"] = preds
+                evaluator.matches[str(sample)]["seg_gt"] = label_cpu
+
+                if cfg.roc:
+                    evaluator.roc_update(
+                        ts=ts,
+                        preds=preds,
+                        idx=idx,
+                        label=label_cpu,
+                        ev_locs=ev_locs,
+                        thresh=val_thresh,
+                    )
+
+        iou = evaluator.evaluate_semantic_segmantation_miou(
+            thresh=val_thresh
+        ).item()
+        acc = evaluator.evaluate_semantic_segmantation_accuracy(
+            thresh=val_thresh
+        ).item()
+
+        mlflow.log_metric("val_iou", iou, step=epoch)
+        mlflow.log_metric("val_acc", acc, step=epoch)
+
+        message = (
+            f"Validation | epoch={epoch + 1:03d} | "
+            f"loss={mean_train_loss:.6f} | "
+            f"lr={current_lr:.2e} | "
+            f"IoU={iou:.4f} | Acc={acc:.4f}"
+        )
+
+        if iou > best_iou:
+            torch.save(
+                net.state_dict(),
+                os.path.join(
+                    cfg.model_save_root,
+                    f"best_iou_seed{seed}.pt",
+                ),
+            )
+            best_iou = iou
+
+        if cfg.roc:
+            pd, fa = evaluator.cal_roc()
+            score, score_fa = official_score(pd, fa, iou, acc)
+
+            mlflow.log_metric("val_pd", pd, step=epoch)
+            mlflow.log_metric("val_fa", fa, step=epoch)
+            mlflow.log_metric("val_score_fa", score_fa, step=epoch)
+            mlflow.log_metric("val_official_score", score, step=epoch)
+
+            message += (
+                f" | Pd={pd:.4f} | Fa={fa:.4e} | "
+                f"Score={score:.4f}"
+            )
+
+            if score > best_score:
+                torch.save(
+                    net.state_dict(),
+                    os.path.join(
+                        cfg.model_save_root,
+                        f"best_score_seed{seed}.pt",
+                    ),
+                )
+                best_score = score
+
+        print(message)
+
+        # 为下一 epoch 更新学习率。
+        scheduler.step()
+
+    mlflow.end_run()
