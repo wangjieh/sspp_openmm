@@ -1,16 +1,16 @@
 evaluation=dict(tmpdir='/mnt/htzzb2/EO_test/wj1/tmp')
-find_unused_parameters=False
-work_dir="/mnt/htzzb2/EO_test/wj1/swin_work_dirs/bright_dual_swin_huge_upernet_ft_backbone_lr_mult_0p1_50e_128x128_8ka"
+find_unused_parameters=True
 
 default_scope = "opencd"
 custom_imports = dict(imports=["swin_opencd"], allow_failed_imports=False)
 
-data_root = "/mnt/htzzb2/EO_test/datasets/BRIGHT"
+data_root = "/mnt/htzzb2/EO_test/datasets/CAU-Flood"
 swin_huge_checkpoint = "/mnt/htzzb2/EO_test/wj1/swin_self_developed_weights/swin_huge_openmm_style.pth"
+work_dir = "/mnt/htzzb2/EO_test/wj1/swin_work_dirs/cau_flood_dual_swin_huge_upernet_ft_backbone_lr_mult_0p1_50e_256x256"
 
-input_size = (128, 128)
+input_size = (256, 256)
 num_classes = 2
-batch_size = 32
+batch_size = 8
 max_epochs = 50
 base_lr = 1e-4
 weight_decay = 0.01
@@ -18,16 +18,19 @@ ignore_index = 255
 in_channels = 4
 feature_channels = [352, 704, 1408, 2816]
 norm_cfg = dict(type="SyncBN", requires_grad=True)
+mean = [49.78984182128746, 79.62260561538505, 69.0808852459157, 158.02073291645573]
+std = [46.17953300539482, 46.36725283300035, 45.23390891984123, 68.08039319156036]
 
 model_wrapper_cfg = dict(
     type="MMDistributedDataParallel",
     find_unused_parameters=False,
 )
+find_unused_parameters = False
 
 data_preprocessor = dict(
     type="DualInputSegDataPreProcessor",
-    mean=[88.674, 85.027, 76.558, 56.630],
-    std=[67.434, 58.458, 53.972, 45.191],
+    mean=[0.0] * in_channels,  # mean,
+    std=[1.0] * in_channels,  # std,
     bgr_to_rgb=False,
     size=input_size,
     pad_val=0,
@@ -37,7 +40,7 @@ data_preprocessor = dict(
 
 swin_huge_backbone = dict(
     type="mmseg.SwinTransformer",
-    pretrain_img_size=128,
+    pretrain_img_size=256,
     in_channels=3,
     embed_dims=352,
     patch_size=4,
@@ -87,7 +90,7 @@ model = dict(
     test_cfg=dict(mode="whole"),
 )
 
-dataset_type = "BRIGHTDataset"
+dataset_type = "CAUFLOODDataset"
 
 pack_meta_keys = (
     "img_path",
@@ -100,20 +103,22 @@ pack_meta_keys = (
     "flip_direction",
 )
 
-load_bright = dict(
-    type="BRIGHTLoadRasterio",
+load_cau_flood = dict(
+    type="CAUFLOODLoadRasterio",
+    ignore_index=ignore_index,
     opt_channels=(0, 1, 2),
+    use_opt_all_zero_as_nodata=True,
 )
 
 train_pipeline = [
-    load_bright,
+    load_cau_flood,
     dict(type="MultiImgRandomFlip", prob=0.5, direction="horizontal"),
     dict(type="MultiImgRandomFlip", prob=0.5, direction="vertical"),
     dict(type="MultiImgPackSegInputs", meta_keys=pack_meta_keys),
 ]
 
 test_pipeline = [
-    load_bright,
+    load_cau_flood,
     dict(type="MultiImgPackSegInputs", meta_keys=pack_meta_keys),
 ]
 
@@ -125,11 +130,10 @@ train_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root+fr"/train.txt",
         data_prefix=dict(
-            img_path_from="train/pre-event",
-            img_path_to="train/post-event",
-            seg_map_path="train/target",
+            img_path_from="train/opt",
+            img_path_to="train/vv",
+            seg_map_path="train/flood_vv",
         ),
         pipeline=train_pipeline,
     ),
@@ -143,11 +147,10 @@ val_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file=data_root+fr"/val.txt",
         data_prefix=dict(
-            img_path_from="val/pre-event",
-            img_path_to="val/post-event",
-            seg_map_path="val/target",
+            img_path_from="test/opt",
+            img_path_to="test/vv",
+            seg_map_path="test/flood_vv",
         ),
         pipeline=test_pipeline,
         test_mode=True,
