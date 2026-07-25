@@ -30,3 +30,10 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 2026年7月24日
 1.使用swin-huge权重，对BRIGHT数据集进行微调测评，以原来的微调作为baseline，编写两个新的训练配置文件，核心改动：（配置1），仅将最优模型与早停监控从mIoU变为mFscore；消除“保存mIoU最优权重，而非最优mFscore权重”的目标；（配置2），使用给定的RGB+VV四通道均值/标准差归一化；缩小光学与VV输入图像亮度尺度差异，使双分支微调更稳定。
 2.拉起两个配置文件的训练。
+
+2026年7月25日
+1.完成BRIGHT数据在（保存最佳mFscore权重；早停patience=10）方案上的微调测评，changed_mFscore=85.77（提 0.41）。
+2.完成BRIGHT数据在（保存最佳mFscore权重；早停patience=10；统计训练集的mean与std作为归一化参数）方案上的微调测评，changed_mFscore=85.21（降0.15）。
+3.完成BRIGHT数据在（保存最佳mFscore权重；早停patience=10；统计训练集的mean与std作为归一化参数；使用CE权重[1, 1.25]）方案上的微调测评，changed_mFscore=85.23（降0.13）。
+4.完成BRIGHT数据在（保存最佳mFscore权重；早停patience=10；统计训练集的mean与std作为归一化参数；新的学习率）方案上的微调测评，changed_mFscore=85.54（提0.18）。
+5.将方案3与方案4中的归一化参数去掉，拉起训练，以验证归一化参数对训练是否有负增益。
