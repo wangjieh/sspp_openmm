@@ -1,1 +1,38 @@
+# cau_flood_dual_swin_huge_upernet_tune08_raw_input_ce_dice_50e_256x256.py
 
+
+
+_base_ = ["./cau_flood_dual_swin_huge_upernet_tune01_mfscore_earlystop_50e_256x256.py"]
+
+work_dir = "/mnt/htzzb2/EO_test/wj1/swin_work_dirs/cau_flood_finetune/cau_flood_dual_swin_huge_upernet_tune08_raw_input_ce_dice_50e_256x256"
+
+dice_loss_weight = 0.5
+
+model = dict(
+    decode_head=dict(
+        loss_decode=[
+            dict(
+                type="mmseg.CrossEntropyLoss",
+                use_sigmoid=False,
+                loss_weight=1.0,
+            ),
+            dict(
+                type="mmseg.DiceLoss",
+                use_sigmoid=False,
+                activate=True,
+                naive_dice=False,
+                ignore_index=255,
+                loss_weight=dice_loss_weight,
+                loss_name="loss_dice",
+            ),
+        ],
+    ),
+)
+
+custom_hooks = [
+    dict(
+        type="SaveRawPredHook",
+        output_dir=work_dir + "_infer",
+        scale255=False,
+    ),
+]
