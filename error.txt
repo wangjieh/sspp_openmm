@@ -1,43 +1,27 @@
-Saving checkpoint at 1 epochs
-/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
-  dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
-/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
-  dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
-/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
-  dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
-W0727 20:13:59.348000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 367159 closing signal SIGTERM
-W0727 20:13:59.394000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 367160 closing signal SIGTERM
-W0727 20:13:59.395000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 367161 closing signal SIGTERM
-E0727 20:14:00.174000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: -9) local_rank: 0 (pid: 367158) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
-Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
-    sys.exit(main())
-             ^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
-    return f(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
-    run(args)
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
-    elastic_launch(
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
-    return launch_agent(self._config, self._entrypoint, list(args))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
-    raise ChildFailedError(
-torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
-============================================================
-opencd_tools/train.py FAILED
-------------------------------------------------------------
-Failures:
-  <NO_OTHER_FAILURES>
-------------------------------------------------------------
-Root Cause (first observed failure):
-[0]:
-  time      : 2026-07-27_20:13:59
-  host      : ji-jupyter-159895604225926208-master-0.ji-jupyter-159895604225926208.nhss-job.svc.cluster.local
-  rank      : 0 (local_rank: 0)
-  exitcode  : -9 (pid: 367158)
-  error_file: <N/A>
-  traceback : Signal 9 (SIGKILL) received by PID 367158
-============================================================
+import os
+import os.path as osp
+
+import numpy as np
+from PIL import Image
+from mmengine.hooks import Hook
+
+from opencd.registry import HOOKS
+
+
+@HOOKS.register_module()
+class SaveRawPredHook(Hook):
+    def __init__(self, output_dir, scale255=False):
+        self.output_dir = output_dir
+        self.scale255 = scale255
+        os.makedirs(output_dir, exist_ok=True)
+
+    def after_test_iter(self, runner, batch_idx, data_batch=None, outputs=None):
+        for output in outputs:
+            img_path = output.img_path
+            while isinstance(img_path, (list, tuple)):
+                img_path = img_path[0]
+            name = osp.splitext(osp.basename(img_path))[0]
+            pred = output.pred_sem_seg.data.squeeze().cpu().numpy().astype(np.uint8)
+            if self.scale255:
+                pred = pred * 255
+            Image.fromarray(pred).save(osp.join(self.output_dir, f'{name}.png'))
