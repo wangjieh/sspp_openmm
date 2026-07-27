@@ -37,3 +37,8 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 3.完成BRIGHT数据在（保存最佳mFscore权重；早停patience=10；统计训练集的mean与std作为归一化参数；使用CE权重[1, 1.25]）方案上的微调测评，changed_mFscore=85.23（降0.13）。
 4.完成BRIGHT数据在（保存最佳mFscore权重；早停patience=10；统计训练集的mean与std作为归一化参数；新的学习率）方案上的微调测评，changed_mFscore=85.54（提0.18）。
 5.将方案3与方案4中的归一化参数去掉，拉起训练，以验证归一化参数对训练是否有负增益。
+
+2026年7月26日
+1.使用（保存最佳mFscore权重；早停patience=10；使用CE权重[1, 1.25]）策略对CAU_FLOOD数据进行微调，mIoU=85.13，相比baseline降0.23。
+2.使用（保存最佳mFscore权重；早停patience=10；新的学习率）策略对CAU_FLOOD数据进行微调，mIoU=85.72，相比baseline提0.36。
+3.统计BRIGHT数据的归一化参数，拉起训练，但被中断。
