@@ -1,3 +1,1 @@
-Mounting command: mount
-Mounting arguments: -t nfs oss-std-hw129.alkaidos.cn:/htzzb2 /var/lib/kubelet/pods/417ed57f-ca9f-44db-a82a-4274cc2b991c/volumes/kubernetes.io~nfs/nhss-job-unistor-htzzb2000000-7c2a3cfc-eb7-pv
-Output: mount.nfs: access denied by server while mounting oss-std-hw129.alkaidos.cn:/htzzb2
+Read-only file system: '/mnt/htzzb2/EO_test/wj1/swin_work_dirs/cau_flood_finetune/cau_flood_dual_swin_huge_learnedfusion_tune10_raw_input_50e_256x256'
