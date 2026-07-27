@@ -1,3 +1,14 @@
+Saving checkpoint at 1 epochs
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+  dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+  dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/rasterio/__init__.py:367: NotGeoreferencedWarning: Dataset has no geotransform, gcps, or rpcs. The identity matrix will be returned.
+  dataset = DatasetReader(path, driver=driver, sharing=sharing, thread_safe=thread_safe, **kwargs)
+W0727 20:13:59.348000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 367159 closing signal SIGTERM
+W0727 20:13:59.394000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 367160 closing signal SIGTERM
+W0727 20:13:59.395000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 367161 closing signal SIGTERM
+E0727 20:14:00.174000 367093 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: -9) local_rank: 0 (pid: 367158) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
 Traceback (most recent call last):
   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
     sys.exit(main())
@@ -23,9 +34,10 @@ Failures:
 ------------------------------------------------------------
 Root Cause (first observed failure):
 [0]:
-  time      : 2026-07-27_19:23:14
+  time      : 2026-07-27_20:13:59
   host      : ji-jupyter-159895604225926208-master-0.ji-jupyter-159895604225926208.nhss-job.svc.cluster.local
   rank      : 0 (local_rank: 0)
-  exitcode  : -9 (pid: 302417)
+  exitcode  : -9 (pid: 367158)
   error_file: <N/A>
-  traceback : Signal 9 (SIGKILL) received by PID 302417
+  traceback : Signal 9 (SIGKILL) received by PID 367158
+============================================================
