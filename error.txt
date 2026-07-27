@@ -1,3 +1,31 @@
-1.使用（保存最佳mFscore权重；早停patience=10；使用CE权重[1, 1.25]）策略对CAU_FLOOD数据进行微调，mIoU=85.13，相比baseline降0.23。
-2.使用（保存最佳mFscore权重；早停patience=10；新的学习率）策略对CAU_FLOOD数据进行微调，mIoU=85.72，相比baseline提0.36。
-3.统计BRIGHT数据的归一化参数，拉起训练，但被中断。
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+opencd_tools/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-07-27_19:23:14
+  host      : ji-jupyter-159895604225926208-master-0.ji-jupyter-159895604225926208.nhss-job.svc.cluster.local
+  rank      : 0 (local_rank: 0)
+  exitcode  : -9 (pid: 302417)
+  error_file: <N/A>
+  traceback : Signal 9 (SIGKILL) received by PID 302417
