@@ -1,27 +1,88 @@
-import os
-import os.path as osp
+ImportError: Failed to import custom modules from {'imports': ['swin_opencd', 'swin_opencd.hooks.save_raw_pred_hooks', 'swin_opencd.models.change_detectors.dual_swin_gated_resdiff_upernet'], 'allow_failed_imports': False}, the current sys.path is: 
+    /mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/opencd_tools
+    /mnt/ht2-nas2/EO_test/wj1/swin_openmmlab
+    /mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/torchrun
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python312.zip
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/lib-dynload
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages
+    __editable__.olmoearth_pretrain-0.1.0.finder.__path_hook__
+    /tmp/tmpxf06f2x3
+You should set `PYTHONPATH` to make `sys.path` include the directory which contains your custom module
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 77, in import_modules_from_strings
+    imported_tmp = import_module(imp)
+                   ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1324, in _find_and_load_unlocked
+ModuleNotFoundError: No module named 'swin_opencd.hooks.save_raw_pred_hooks'
 
-import numpy as np
-from PIL import Image
-from mmengine.hooks import Hook
+During handling of the above exception, another exception occurred:
 
-from opencd.registry import HOOKS
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 466, in fromfile
+    import_modules_from_strings(**cfg_dict['custom_imports'])
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 84, in import_modules_from_strings
+    raise ImportError(f'Failed to import {imp}')
+ImportError: Failed to import swin_opencd.hooks.save_raw_pred_hooks
 
+The above exception was the direct cause of the following exception:
 
-@HOOKS.register_module()
-class SaveRawPredHook(Hook):
-    def __init__(self, output_dir, scale255=False):
-        self.output_dir = output_dir
-        self.scale255 = scale255
-        os.makedirs(output_dir, exist_ok=True)
-
-    def after_test_iter(self, runner, batch_idx, data_batch=None, outputs=None):
-        for output in outputs:
-            img_path = output.img_path
-            while isinstance(img_path, (list, tuple)):
-                img_path = img_path[0]
-            name = osp.splitext(osp.basename(img_path))[0]
-            pred = output.pred_sem_seg.data.squeeze().cpu().numpy().astype(np.uint8)
-            if self.scale255:
-                pred = pred * 255
-            Image.fromarray(pred).save(osp.join(self.output_dir, f'{name}.png'))
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/opencd_tools/train.py", line 104, in <module>
+    main()
+  File "/mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/opencd_tools/train.py", line 58, in main
+    cfg = Config.fromfile(args.config)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 478, in fromfile
+    raise ImportError(err_msg) from e
+ImportError: Failed to import custom modules from {'imports': ['swin_opencd', 'swin_opencd.hooks.save_raw_pred_hooks', 'swin_opencd.models.change_detectors.dual_swin_gated_resdiff_upernet'], 'allow_failed_imports': False}, the current sys.path is: 
+    /mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/opencd_tools
+    /mnt/ht2-nas2/EO_test/wj1/swin_openmmlab
+    /mnt/ht2-nas2/EO_test/wj1/swin_openmmlab/torchrun
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python312.zip
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/lib-dynload
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages
+    __editable__.olmoearth_pretrain-0.1.0.finder.__path_hook__
+    /tmp/tmpxxpwr5nh
+You should set `PYTHONPATH` to make `sys.path` include the directory which contains your custom module
+W0728 09:14:30.022000 3458471 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 3458536 closing signal SIGTERM
+W0728 09:14:30.025000 3458471 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 3458538 closing signal SIGTERM
+W0728 09:14:30.026000 3458471 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 3458539 closing signal SIGTERM
+E0728 09:14:30.342000 3458471 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 1 (pid: 3458537) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+opencd_tools/train.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-07-28_09:14:30
+  host      : ji-jupyter-159895604225926208-master-0.ji-jupyter-159895604225926208.nhss-job.svc.cluster.local
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 3458537)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
