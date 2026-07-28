@@ -44,10 +44,7 @@ Traceback (most recent call last):
   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 543, in forward
     a1 = self._cross_attn(t1, t2)   # t1 查询 t2
          ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 523, in _cross_attn
-    k = _window_partition(k, ws)
-        ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 460, in _window_partition
-    x = x.view(B, C, H // ws, ws, W // ws, ws)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-RuntimeError: shape '[8, 128, 0, 8, 0, 8]' is invalid for input of size 16384
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 530, in _cross_attn
+    k = k.view(nw, N, hd, self.head_dim).permute(0, 2, 1, 3)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: shape '[32, 16, 4, 32]' is invalid for input of size 16384
