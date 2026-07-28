@@ -11,40 +11,16 @@ Traceback (most recent call last):
   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 313, in run_iter
     outputs = self.runner.model.train_step(
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/base_model/base_model.py", line 114, in train_step
-    losses = self._run_forward(data, mode='loss')  # type: ignore
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/base_model/base_model.py", line 361, in _run_forward
-    results = self(**data, mode=mode)
-              ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/base_model/base_model.py", line 113, in train_step
+    data = self.data_preprocessor(data, True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
     return self._call_impl(*args, **kwargs)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
     return forward_call(*args, **kwargs)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/base.py", line 94, in forward
-    return self.loss(inputs, data_samples)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_encoder_decoder.py", line 92, in loss
-    loss_dict, preds = self.decode_head.loss_with_preds(
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 398, in loss_with_preds
-    feats = self.extract_feats(feats1, feats2)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 687, in extract_feats
-    diff_p5 = self.fuse5(t1_p5, t2_p5)
-              ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-    return forward_call(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 543, in forward
-    a1 = self._cross_attn(t1, t2)   # t1 查询 t2
-         ^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/change_detectors/changedino_decoder.py", line 530, in _cross_attn
-    k = k.view(nw, N, hd, self.head_dim).permute(0, 2, 1, 3)
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-RuntimeError: shape '[128, 4, 4, 32]' is invalid for input of size 16384
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/data_preprocessor.py", line 221, in forward
+    inputs = [(_input - self.mean) / self.std for _input in inputs]
+               ~~~~~~~^~~~~~~~~~~
+RuntimeError: The size of tensor a (7) must match the size of tensor b (6) at non-singleton dimension 0
