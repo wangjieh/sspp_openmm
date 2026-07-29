@@ -10,6 +10,8 @@ it only removes the two permanently-unused trainable tensors that break DDP.
 
 from __future__ import annotations
 
+# python /你的脚本路径/fix_rfr_ddp_unused_parameters.py codes/model/RFR_framework.py
+
 import re
 import shutil
 import sys
