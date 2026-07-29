@@ -1,129 +1,102 @@
-"""Validate an RFR checkpoint or export Track 1 detection-only submissions."""
-
-from __future__ import annotations
-
-import argparse
-import json
-import random
-import shutil
-from pathlib import Path
-from typing import Dict
-
-import numpy as np
-import torch
-from torch.utils.data import DataLoader
-from tqdm.auto import tqdm
-
-from centroid_metrics import f1_from_counts, mask_to_centroids, match_centroids, submission_line
-from dataset_track1 import Track1SequenceDataset, discover_sequences
-from net import Net
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="Run RFR on the CSIG Track 1 data layout.")
-    parser.add_argument("--data-root", type=Path, required=True, help="Directory containing train/ and val/.")
-    parser.add_argument("--split", default="val", help="Split directory to process, e.g. val or test.")
-    parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--model-name", default=None, help="Defaults to the model_name saved in the checkpoint.")
-    parser.add_argument("--output-dir", type=Path, required=True, help="Directory receiving one TXT file per sequence.")
-    parser.add_argument("--threshold", type=float, default=None, help="Mask threshold; defaults to the checkpoint value or 0.5.")
-    parser.add_argument("--min-area", type=int, default=1, help="Discard predicted connected components smaller than this area.")
-    parser.add_argument("--match-distance", type=float, default=3.0, help="Centroid radius for the local validation F1 proxy.")
-    parser.add_argument("--zip-path", type=Path, default=None, help="Optional zip path; files are placed at the zip root.")
-    parser.add_argument("--num-workers", type=int, default=0)
-    parser.add_argument("--device", default="cuda")
-    return parser.parse_args()
-
-
-def load_checkpoint(path: Path, device: torch.device):
-    checkpoint = torch.load(path, map_location=device)
-    required = {"state_dict", "norm_cfg"}
-    missing = required - set(checkpoint)
-    if missing:
-        raise KeyError(f"Checkpoint lacks Track 1 metadata: {sorted(missing)}")
-    return checkpoint
-
-
-def run_inference(model: Net, split_root: Path, norm_cfg: Dict[str, float], threshold: float, min_area: int,
-                  match_distance: float, output_dir: Path, device: torch.device, num_workers: int = 0,
-                  require_masks: bool = True, sequence_names: list[str] | None = None,
-                  show_progress: bool = True, progress_desc: str = "Inference") -> Dict[str, float]:
-    """Run inference for a complete split or an explicitly assigned sequence subset.
-
-    ``sequence_names`` lets DDP workers process disjoint sequences while sharing
-    the same output directory. A sequence is written by exactly one worker.
-    """
-    sequences = discover_sequences(split_root, require_masks=require_masks)
-    if sequence_names is not None:
-        known_sequences = set(sequences)
-        unknown = sorted(set(sequence_names) - known_sequences)
-        if unknown:
-            raise ValueError(f"Unknown sequence(s) requested for inference: {unknown[:3]}")
-        sequences = list(sequence_names)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    total_tp = total_fp = total_fn = 0
-    model.eval()
-
-    with torch.no_grad():
-        sequence_progress = tqdm(sequences, total=len(sequences), desc=progress_desc,
-                                 dynamic_ncols=True, leave=True, disable=not show_progress)
-        for sequence_name in sequence_progress:
-            dataset = Track1SequenceDataset(split_root, sequence_name, norm_cfg, require_masks=require_masks, sequences=sequences)
-            loader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=num_workers)
-            lines = []
-            feature_propagation = None
-            for batch in loader:
-                image = batch["image"].to(device, non_blocking=True)
-                prediction, feature_propagation = model.forward_test(image, feature_propagation)
-                height = int(batch["size"][0].item())
-                width = int(batch["size"][1].item())
-                mask = prediction[0, 0, :height, :width].detach().cpu().numpy() >= threshold
-                predicted_centroids = mask_to_centroids(mask, min_area=min_area)
-                frame_id = batch["frame_id"][0]
-                lines.append(submission_line(frame_id, predicted_centroids))
-
-                if require_masks:
-                    target_mask = batch["mask"][0, 0, :height, :width].numpy() > 0
-                    target_centroids = mask_to_centroids(target_mask, min_area=1)
-                    tp, fp, fn = match_centroids(predicted_centroids, target_centroids, match_distance)
-                    total_tp += tp
-                    total_fp += fp
-                    total_fn += fn
-            (output_dir / f"{sequence_name}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-    results = {"tp": total_tp, "fp": total_fp, "fn": total_fn}
-    if require_masks:
-        results["f1_proxy"] = f1_from_counts(total_tp, total_fp, total_fn)
-        precision_denominator = total_tp + total_fp
-        recall_denominator = total_tp + total_fn
-        results["precision_proxy"] = 0.0 if precision_denominator == 0 else total_tp / precision_denominator
-        results["recall_proxy"] = 0.0 if recall_denominator == 0 else total_tp / recall_denominator
-    return results
-
-
-def main():
-    args = parse_args()
-    if args.device.startswith("cuda") and not torch.cuda.is_available():
-        raise RuntimeError("CUDA is required by the RFR deformable-convolution extension, but no CUDA device is available.")
-    device = torch.device(args.device)
-    checkpoint = load_checkpoint(args.checkpoint, device)
-    model_name = args.model_name or checkpoint.get("model_name", "ResUNet_RFR")
-    threshold = args.threshold if args.threshold is not None else checkpoint.get("threshold", 0.5)
-    split_root = args.data_root / args.split
-    require_masks = (split_root / next(iter(discover_sequences(split_root, require_masks=False))) / "mask").is_dir()
-    model = Net(model_name=model_name).to(device)
-    model.load_state_dict(checkpoint["state_dict"])
-    results = run_inference(model, split_root, checkpoint["norm_cfg"], threshold, args.min_area, args.match_distance,
-                            args.output_dir, device, args.num_workers, require_masks=require_masks)
-    print(json.dumps(results, ensure_ascii=False, indent=2))
-    if args.zip_path:
-        args.zip_path.parent.mkdir(parents=True, exist_ok=True)
-        archive_base = args.zip_path.with_suffix("")
-        archive = shutil.make_archive(str(archive_base), "zip", root_dir=args.output_dir)
-        if Path(archive) != args.zip_path:
-            Path(archive).replace(args.zip_path)
-        print(f"Wrote submission zip: {args.zip_path}")
-
-
-if __name__ == "__main__":
-    main()
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank0]:     main()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank0]:     local_sequences = validation_sequences[rank::world_size]
+[rank0]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank0]: KeyError: slice(0, None, 8)
+ji-jupyter-159925121028488128-master-0:787226:787226 [1] NCCL INFO comm 0x555601df06d0 rank 1 nranks 8 cudaDev 1 busId 16000 - Destroy COMPLETE
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank1]:     main()
+[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank1]:     local_sequences = validation_sequences[rank::world_size]
+[rank1]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank1]: KeyError: slice(1, None, 8)
+ji-jupyter-159925121028488128-master-0:787228:787228 [3] NCCL INFO comm 0x55a130420190 rank 3 nranks 8 cudaDev 3 busId 4d000 - Destroy COMPLETE
+[rank3]: Traceback (most recent call last):
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank3]:     main()
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank3]:     local_sequences = validation_sequences[rank::world_size]
+[rank3]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank3]: KeyError: slice(3, None, 8)
+ji-jupyter-159925121028488128-master-0:787227:787227 [2] NCCL INFO comm 0x55be3e7ea630 rank 2 nranks 8 cudaDev 2 busId 49000 - Destroy COMPLETE
+[rank2]: Traceback (most recent call last):
+[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank2]:     main()
+[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank2]:     local_sequences = validation_sequences[rank::world_size]
+[rank2]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank2]: KeyError: slice(2, None, 8)
+ji-jupyter-159925121028488128-master-0:787229:787229 [4] NCCL INFO comm 0x557e5a5743e0 rank 4 nranks 8 cudaDev 4 busId 8a000 - Destroy COMPLETE
+ji-jupyter-159925121028488128-master-0:787232:787232 [7] NCCL INFO comm 0x55d86cd30f10 rank 7 nranks 8 cudaDev 7 busId ca000 - Destroy COMPLETE
+[rank4]: Traceback (most recent call last):
+[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank4]:     main()
+[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank4]:     local_sequences = validation_sequences[rank::world_size]
+[rank4]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank4]: KeyError: slice(4, None, 8)
+[rank7]: Traceback (most recent call last):
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank7]:     main()
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank7]:     local_sequences = validation_sequences[rank::world_size]
+[rank7]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank7]: KeyError: slice(7, None, 8)
+ji-jupyter-159925121028488128-master-0:787230:787230 [5] NCCL INFO comm 0x556196f3b5e0 rank 5 nranks 8 cudaDev 5 busId 8f000 - Destroy COMPLETE
+[rank5]: Traceback (most recent call last):
+[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank5]:     main()
+[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank5]:     local_sequences = validation_sequences[rank::world_size]
+[rank5]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank5]: KeyError: slice(5, None, 8)
+ji-jupyter-159925121028488128-master-0:787231:787231 [6] NCCL INFO comm 0x562e04ddb360 rank 6 nranks 8 cudaDev 6 busId c6000 - Destroy COMPLETE
+[rank6]: Traceback (most recent call last):
+[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
+[rank6]:     main()
+[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
+[rank6]:     local_sequences = validation_sequences[rank::world_size]
+[rank6]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+[rank6]: KeyError: slice(6, None, 8)
+W0729 13:13:21.022000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787225 closing signal SIGTERM
+W0729 13:13:21.025000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787226 closing signal SIGTERM
+W0729 13:13:21.026000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787227 closing signal SIGTERM
+W0729 13:13:21.027000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787228 closing signal SIGTERM
+W0729 13:13:21.028000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787229 closing signal SIGTERM
+W0729 13:13:21.029000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787230 closing signal SIGTERM
+W0729 13:13:21.031000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787231 closing signal SIGTERM
+E0729 13:13:22.062000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 7 (pid: 787232) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+train_track1.py FAILED
+------------------------------------------------------------
+Failures:
+  <NO_OTHER_FAILURES>
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-07-29_13:13:21
+  host      : ji-jupyter-159925121028488128-master-0.ji-jupyter-159925121028488128.nhss-job.svc.cluster.local
+  rank      : 7 (local_rank: 7)
+  exitcode  : 1 (pid: 787232)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
