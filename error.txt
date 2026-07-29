@@ -1,102 +1,47 @@
-[rank0]: Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank0]:     local_sequences = validation_sequences[rank::world_size]
-[rank0]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank0]: KeyError: slice(0, None, 8)
-ji-jupyter-159925121028488128-master-0:787226:787226 [1] NCCL INFO comm 0x555601df06d0 rank 1 nranks 8 cudaDev 1 busId 16000 - Destroy COMPLETE
-[rank1]: Traceback (most recent call last):
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank1]:     main()
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank1]:     local_sequences = validation_sequences[rank::world_size]
-[rank1]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank1]: KeyError: slice(1, None, 8)
-ji-jupyter-159925121028488128-master-0:787228:787228 [3] NCCL INFO comm 0x55a130420190 rank 3 nranks 8 cudaDev 3 busId 4d000 - Destroy COMPLETE
-[rank3]: Traceback (most recent call last):
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank3]:     main()
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank3]:     local_sequences = validation_sequences[rank::world_size]
-[rank3]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank3]: KeyError: slice(3, None, 8)
-ji-jupyter-159925121028488128-master-0:787227:787227 [2] NCCL INFO comm 0x55be3e7ea630 rank 2 nranks 8 cudaDev 2 busId 49000 - Destroy COMPLETE
-[rank2]: Traceback (most recent call last):
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank2]:     main()
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank2]:     local_sequences = validation_sequences[rank::world_size]
-[rank2]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank2]: KeyError: slice(2, None, 8)
-ji-jupyter-159925121028488128-master-0:787229:787229 [4] NCCL INFO comm 0x557e5a5743e0 rank 4 nranks 8 cudaDev 4 busId 8a000 - Destroy COMPLETE
-ji-jupyter-159925121028488128-master-0:787232:787232 [7] NCCL INFO comm 0x55d86cd30f10 rank 7 nranks 8 cudaDev 7 busId ca000 - Destroy COMPLETE
-[rank4]: Traceback (most recent call last):
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank4]:     main()
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank4]:     local_sequences = validation_sequences[rank::world_size]
-[rank4]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank4]: KeyError: slice(4, None, 8)
-[rank7]: Traceback (most recent call last):
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank7]:     main()
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank7]:     local_sequences = validation_sequences[rank::world_size]
-[rank7]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank7]: KeyError: slice(7, None, 8)
-ji-jupyter-159925121028488128-master-0:787230:787230 [5] NCCL INFO comm 0x556196f3b5e0 rank 5 nranks 8 cudaDev 5 busId 8f000 - Destroy COMPLETE
-[rank5]: Traceback (most recent call last):
-[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank5]:     main()
-[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank5]:     local_sequences = validation_sequences[rank::world_size]
-[rank5]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank5]: KeyError: slice(5, None, 8)
-ji-jupyter-159925121028488128-master-0:787231:787231 [6] NCCL INFO comm 0x562e04ddb360 rank 6 nranks 8 cudaDev 6 busId c6000 - Destroy COMPLETE
-[rank6]: Traceback (most recent call last):
-[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 215, in <module>
-[rank6]:     main()
-[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 188, in main
-[rank6]:     local_sequences = validation_sequences[rank::world_size]
-[rank6]:                       ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
-[rank6]: KeyError: slice(6, None, 8)
-W0729 13:13:21.022000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787225 closing signal SIGTERM
-W0729 13:13:21.025000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787226 closing signal SIGTERM
-W0729 13:13:21.026000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787227 closing signal SIGTERM
-W0729 13:13:21.027000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787228 closing signal SIGTERM
-W0729 13:13:21.028000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787229 closing signal SIGTERM
-W0729 13:13:21.029000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787230 closing signal SIGTERM
-W0729 13:13:21.031000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 787231 closing signal SIGTERM
-E0729 13:13:22.062000 785334 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 7 (pid: 787232) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
 Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
-    sys.exit(main())
-             ^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
-    return f(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
-    run(args)
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
-    elastic_launch(
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
-    return launch_agent(self._config, self._entrypoint, list(args))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
-    raise ChildFailedError(
-torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
-============================================================
-train_track1.py FAILED
-------------------------------------------------------------
-Failures:
-  <NO_OTHER_FAILURES>
-------------------------------------------------------------
-Root Cause (first observed failure):
-[0]:
-  time      : 2026-07-29_13:13:21
-  host      : ji-jupyter-159925121028488128-master-0.ji-jupyter-159925121028488128.nhss-job.svc.cluster.local
-  rank      : 7 (local_rank: 7)
-  exitcode  : 1 (pid: 787232)
-  error_file: <N/A>
-  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 77, in import_modules_from_strings
+    imported_tmp = import_module(imp)
+                   ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_models/fusion_backbone_v2.py", line 61, in <module>
+    from dinov3.models.croma_vit_crosself_integration_opimize import MultiLayerCustomEncoder
+ModuleNotFoundError: No module named 'dinov3.models.croma_vit_crosself_integration_opimize'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 466, in fromfile
+    import_modules_from_strings(**cfg_dict['custom_imports'])
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 84, in import_modules_from_strings
+    raise ImportError(f'Failed to import {imp}')
+ImportError: Failed to import custom_models.fusion_backbone_v2
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/train.py", line 104, in <module>
+    main()
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/train.py", line 58, in main
+    cfg = Config.fromfile(args.config)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 478, in fromfile
+    raise ImportError(err_msg) from e
+ImportError: Failed to import custom modules from {'imports': ['custom_datasets.customPotsdam', 'custom_datasets.ningbo2m_new', 'custom_models.fusion_backbone_v2'], 'allow_failed_imports': False}, the current sys.path is: 
+    /mnt/ht2-nas2/00-model/00-limx/Codes/dinov3-main
+    /mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools
+    /mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python312.zip
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/lib-dynload
+    /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages
+    __editable__.olmoearth_pretrain-0.1.0.finder.__path_hook__
+    /tmp/tmp_asfcqua
+You should set `PYTHONPATH` to make `sys.path` include the directory which contains your custom module
