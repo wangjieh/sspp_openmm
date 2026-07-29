@@ -1,156 +1,42 @@
-[rank1]: Traceback (most recent call last):
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 182, in <module>
-[rank1]:     main()
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 144, in main
-[rank1]:     loss = model(images, masks)  # DDP forward: gradients synchronize across GPUs.
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank1]:     return self._call_impl(*args, **kwargs)
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank1]:     return forward_call(*args, **kwargs)
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1644, in forward
-[rank1]:     inputs, kwargs = self._pre_forward(*inputs, **kwargs)
-[rank1]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1533, in _pre_forward
-[rank1]:     if torch.is_grad_enabled() and self.reducer._rebuild_buckets():
-[rank1]:                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]: RuntimeError: Expected to have finished reduction in the prior iteration before starting a new one. This error indicates that your module has parameters that were not used in producing loss. You can enable unused parameter detection by passing the keyword argument `find_unused_parameters=True` to `torch.nn.parallel.DistributedDataParallel`, and by 
-[rank1]: making sure all `forward` function outputs participate in calculating loss. 
-[rank1]: If you already have done the above, then the distributed data parallel module wasn't able to locate the output tensors in the return value of your module's `forward` function. Please include the loss function and the structure of the return value of `forward` of your module when reporting this issue (e.g. list, dict, iterable).
-[rank1]: Parameter indices which did not receive grad for rank 1: 51 52
-[rank1]:  In addition, you can set the environment variable TORCH_DISTRIBUTED_DEBUG to either INFO or DETAIL to print out information about which particular parameters did not receive gradient on this rank as part of this error
-ji-jupyter-159925121028488128-master-0:270494:270494 [2] NCCL INFO comm 0x55824170be10 rank 2 nranks 4 cudaDev 2 busId 49000 - Destroy COMPLETE
+"""Remove RFR's dead fusion_align layer so DDP sees no unused parameters.
+
+Usage on the training server:
+    python fix_rfr_ddp_unused_parameters.py /path/to/RFR-main/codes/model/RFR_framework.py
+
+fusion_align is declared by the upstream implementation but never called by
+forward_train() or forward_test().  Removing it changes no network computation;
+it only removes the two permanently-unused trainable tensors that break DDP.
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import sys
+from pathlib import Path
 
 
+def main() -> None:
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: python fix_rfr_ddp_unused_parameters.py /path/to/RFR_framework.py")
+    path = Path(sys.argv[1]).resolve()
+    source = path.read_text(encoding="utf-8")
+    # Upstream formatting wraps this Conv2d declaration across two lines.
+    pattern = r"^[ \t]*self\.fusion_align\s*=\s*nn\.Conv2d\((?:.|\n)*?\)\s*\n"
+    updated, replacements = re.subn(pattern, "", source, count=1, flags=re.MULTILINE)
+    if replacements == 0:
+        if "self.fusion_align" not in source:
+            print("No change: fusion_align is already absent.")
+            return
+        raise RuntimeError("fusion_align was found but its Conv2d declaration could not be located; patch it manually.")
+    if "self.fusion_align" in updated:
+        raise RuntimeError("Refusing to patch: fusion_align is referenced elsewhere in this source file.")
+    backup = path.with_suffix(path.suffix + ".bak")
+    if not backup.exists():
+        shutil.copy2(path, backup)
+    path.write_text(updated, encoding="utf-8")
+    print(f"Removed unused fusion_align from {path}; backup: {backup}")
 
-[rank3]: Traceback (most recent call last):
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 182, in <module>
-[rank3]:     main()
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 144, in main
-[rank3]:     loss = model(images, masks)  # DDP forward: gradients synchronize across GPUs.
-[rank3]:            ^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank3]:     return self._call_impl(*args, **kwargs)
-[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank3]:     return forward_call(*args, **kwargs)
-[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1644, in forward
-[rank3]:     inputs, kwargs = self._pre_forward(*inputs, **kwargs)
-[rank3]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1533, in _pre_forward
-[rank3]:     if torch.is_grad_enabled() and self.reducer._rebuild_buckets():
-[rank3]:                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]: RuntimeError: Expected to have finished reduction in the prior iteration before starting a new one. This error indicates that your module has parameters that were not used in producing loss. You can enable unused parameter detection by passing the keyword argument `find_unused_parameters=True` to `torch.nn.parallel.DistributedDataParallel`, and by 
-[rank3]: making sure all `forward` function outputs participate in calculating loss. 
-[rank3]: If you already have done the above, then the distributed data parallel module wasn't able to locate the output tensors in the return value of your module's `forward` function. Please include the loss function and the structure of the return value of `forward` of your module when reporting this issue (e.g. list, dict, iterable).
-[rank3]: Parameter indices which did not receive grad for rank 3: 51 52
-[rank3]:  In addition, you can set the environment variable TORCH_DISTRIBUTED_DEBUG to either INFO or DETAIL to print out information about which particular parameters did not receive gradient on this rank as part of this error
-[rank1]: Traceback (most recent call last):
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 182, in <module>
-[rank1]:     main()
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 144, in main
-[rank1]:     loss = model(images, masks)  # DDP forward: gradients synchronize across GPUs.
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank1]:     return self._call_impl(*args, **kwargs)
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank1]:     return forward_call(*args, **kwargs)
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1644, in forward
-[rank1]:     inputs, kwargs = self._pre_forward(*inputs, **kwargs)
-[rank1]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1533, in _pre_forward
-[rank1]:     if torch.is_grad_enabled() and self.reducer._rebuild_buckets():
-[rank1]:                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]: RuntimeError: Expected to have finished reduction in the prior iteration before starting a new one. This error indicates that your module has parameters that were not used in producing loss. You can enable unused parameter detection by passing the keyword argument `find_unused_parameters=True` to `torch.nn.parallel.DistributedDataParallel`, and by 
-[rank1]: making sure all `forward` function outputs participate in calculating loss. 
-[rank1]: If you already have done the above, then the distributed data parallel module wasn't able to locate the output tensors in the return value of your module's `forward` function. Please include the loss function and the structure of the return value of `forward` of your module when reporting this issue (e.g. list, dict, iterable).
-[rank1]: Parameter indices which did not receive grad for rank 1: 51 52
-[rank1]:  In addition, you can set the environment variable TORCH_DISTRIBUTED_DEBUG to either INFO or DETAIL to print out information about which particular parameters did not receive gradient on this rank as part of this error
-[rank2]: Traceback (most recent call last):
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 182, in <module>
-[rank2]:     main()
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 144, in main
-[rank2]:     loss = model(images, masks)  # DDP forward: gradients synchronize across GPUs.
-[rank2]:            ^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank2]:     return self._call_impl(*args, **kwargs)
-[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank2]:     return forward_call(*args, **kwargs)
-[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1644, in forward
-[rank2]:     inputs, kwargs = self._pre_forward(*inputs, **kwargs)
-[rank2]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1533, in _pre_forward
-[rank2]:     if torch.is_grad_enabled() and self.reducer._rebuild_buckets():
-[rank2]:                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]: RuntimeError: Expected to have finished reduction in the prior iteration before starting a new one. This error indicates that your module has parameters that were not used in producing loss. You can enable unused parameter detection by passing the keyword argument `find_unused_parameters=True` to `torch.nn.parallel.DistributedDataParallel`, and by 
-[rank2]: making sure all `forward` function outputs participate in calculating loss. 
-[rank2]: If you already have done the above, then the distributed data parallel module wasn't able to locate the output tensors in the return value of your module's `forward` function. Please include the loss function and the structure of the return value of `forward` of your module when reporting this issue (e.g. list, dict, iterable).
-[rank2]: Parameter indices which did not receive grad for rank 2: 51 52
-[rank2]:  In addition, you can set the environment variable TORCH_DISTRIBUTED_DEBUG to either INFO or DETAIL to print out information about which particular parameters did not receive gradient on this rank as part of this error
-ji-jupyter-159925121028488128-master-0:337388:337388 [0] NCCL INFO comm 0x5559e45ed280 rank 0 nranks 4 cudaDev 0 busId 10000 - Destroy COMPLETE
-[rank0]: Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 182, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 144, in main
-[rank0]:     loss = model(images, masks)  # DDP forward: gradients synchronize across GPUs.
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank0]:     return self._call_impl(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank0]:     return forward_call(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1644, in forward
-[rank0]:     inputs, kwargs = self._pre_forward(*inputs, **kwargs)
-[rank0]:                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/parallel/distributed.py", line 1533, in _pre_forward
-[rank0]:     if torch.is_grad_enabled() and self.reducer._rebuild_buckets():
-[rank0]:                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]: RuntimeError: Expected to have finished reduction in the prior iteration before starting a new one. This error indicates that your module has parameters that were not used in producing loss. You can enable unused parameter detection by passing the keyword argument `find_unused_parameters=True` to `torch.nn.parallel.DistributedDataParallel`, and by 
-[rank0]: making sure all `forward` function outputs participate in calculating loss. 
-[rank0]: If you already have done the above, then the distributed data parallel module wasn't able to locate the output tensors in the return value of your module's `forward` function. Please include the loss function and the structure of the return value of `forward` of your module when reporting this issue (e.g. list, dict, iterable).
-[rank0]: Parameter indices which did not receive grad for rank 0: 51 52
-[rank0]:  In addition, you can set the environment variable TORCH_DISTRIBUTED_DEBUG to either INFO or DETAIL to print out information about which particular parameters did not receive gradient on this rank as part of this error
-W0729 12:30:19.973000 336337 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 337388 closing signal SIGTERM
-W0729 12:30:19.975000 336337 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 337389 closing signal SIGTERM
-W0729 12:30:19.976000 336337 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 337391 closing signal SIGTERM
-E0729 12:30:20.342000 336337 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 2 (pid: 337390) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
-Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
-    sys.exit(main())
-             ^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
-    return f(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
-    run(args)
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
-    elastic_launch(
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
-    return launch_agent(self._config, self._entrypoint, list(args))
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
-    raise ChildFailedError(
-torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
-============================================================
-train_track1.py FAILED
-------------------------------------------------------------
-Failures:
-  <NO_OTHER_FAILURES>
-------------------------------------------------------------
-Root Cause (first observed failure):
-[0]:
-  time      : 2026-07-29_12:30:19
-  host      : ji-jupyter-159925121028488128-master-0.ji-jupyter-159925121028488128.nhss-job.svc.cluster.local
-  rank      : 2 (local_rank: 2)
-  exitcode  : 1 (pid: 337390)
-  error_file: <N/A>
-  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
-============================================================
+
+if __name__ == "__main__":
+    main()
