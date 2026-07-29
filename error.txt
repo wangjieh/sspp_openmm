@@ -1,109 +1,18 @@
-"""Modernize the legacy RFR DCN extension for recent PyTorch releases.
-
-Usage on the Linux training server:
-    python modernize_dcn_for_torch2.py /path/to/RFR-main/codes/model/dcn
-
-The script is intentionally idempotent.  It creates a .bak copy beside every
-modified source file on the first run, so the original implementation remains
-recoverable.
-"""
-
-"""
-cd /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn
-
-python /path/to/modernize_dcn_for_torch2.py .
-rm -rf build
-MAX_JOBS=1 python setup.py build_ext --inplace
-"""
-
-
-from __future__ import annotations
-
-import re
-import shutil
-import sys
-from pathlib import Path
-
-
-SOURCE_SUFFIXES = {".cu", ".cpp", ".h", ".cuh"}
-THC_INCLUDES = (
-    "#include <THC/THC.h>",
-    "#include <THC/THCAtomics.cuh>",
-    "#include <THC/THCDeviceUtils.cuh>",
-)
-CUDA_COMPAT_INCLUDE = "#include <c10/cuda/CUDAException.h>"
-CUDA_COMPAT_MACRO = """
-// Compatibility replacements for the removed THC utility headers.
-#ifndef DCN_CEIL_DIV
-#define DCN_CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
-#endif
-""".strip()
-
-
-def modernize_source(path: Path) -> bool:
-    original = path.read_text(encoding="utf-8")
-    updated = original
-
-    # THC was removed from modern PyTorch.  These files use only its error
-    # check and ceil-div helpers, replaced below with maintained equivalents.
-    needs_ceil_div = "THCCeilDiv(" in updated
-    for include in THC_INCLUDES:
-        updated = updated.replace(include, "")
-    if "THCudaCheck(" in updated:
-        if CUDA_COMPAT_INCLUDE not in updated:
-            marker = "#include <ATen/cuda/CUDAContext.h>"
-            if marker in updated:
-                updated = updated.replace(marker, marker + "\n" + CUDA_COMPAT_INCLUDE, 1)
-            else:
-                updated = CUDA_COMPAT_INCLUDE + "\n" + updated
-        updated = updated.replace("THCudaCheck(", "C10_CUDA_CHECK(")
-    if needs_ceil_div and "#define DCN_CEIL_DIV" not in updated:
-        updated = CUDA_COMPAT_MACRO + "\n\n" + updated
-    updated = updated.replace("THCCeilDiv(", "DCN_CEIL_DIV(")
-
-    # PyTorch 2.x dispatch macros no longer accept DeprecatedTypeProperties.
-    updated = re.sub(
-        r"(AT_DISPATCH_FLOATING_TYPES\(\s*[A-Za-z_][A-Za-z0-9_]*?)\.type\(\)",
-        r"\1.scalar_type()",
-        updated,
-    )
-    updated = re.sub(
-        r"(AT_DISPATCH_FLOATING_TYPES_AND_HALF\(\s*[A-Za-z_][A-Za-z0-9_]*?)\.type\(\)",
-        r"\1.scalar_type()",
-        updated,
-    )
-
-    # These checks are warnings today and can turn into API errors in future
-    # PyTorch versions; Tensor.is_cuda() is the supported form.
-    updated = re.sub(r"([A-Za-z_][A-Za-z0-9_]*)\.type\(\)\.is_cuda\(\)", r"\1.is_cuda()", updated)
-
-    if updated == original:
-        return False
-    backup = path.with_suffix(path.suffix + ".bak")
-    if not backup.exists():
-        shutil.copy2(path, backup)
-    path.write_text(updated, encoding="utf-8")
-    return True
-
-
-def main() -> None:
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: python modernize_dcn_for_torch2.py /path/to/codes/model/dcn")
-    dcn_root = Path(sys.argv[1]).resolve()
-    source_root = dcn_root / "src"
-    if not source_root.is_dir():
-        raise SystemExit(f"Not an RFR DCN directory (missing src/): {dcn_root}")
-    changed = []
-    for path in sorted(source_root.rglob("*")):
-        if path.is_file() and path.suffix in SOURCE_SUFFIXES:
-            if modernize_source(path):
-                changed.append(path.relative_to(dcn_root))
-    print("Updated files:")
-    for path in changed:
-        print(f"  {path}")
-    if not changed:
-        print("  none (the sources are already modernized or use different APIs)")
-
-
-if __name__ == "__main__":
-    main()
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/train_track1.py", line 24, in <module>
+    from infer_track1 import run_inference
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/infer_track1.py", line 20, in <module>
+    from net import Net
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/net.py", line 9, in <module>
+    from model.RFR_framework import RFR
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/RFR_framework.py", line 6, in <module>
+    from model.dcn.modules.deform_conv import DeformConv
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/modules/__init__.py", line 1, in <module>
+    from .deform_conv import ConvOffset2d, _DeformConv, DeformConvPack
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/modules/deform_conv.py", line 12, in <module>
+    from model.dcn.functions.deform_conv_func import DeformConvFunction
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/functions/__init__.py", line 1, in <module>
+    from .deform_conv_func import DeformConvFunction
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/functions/deform_conv_func.py", line 13, in <module>
+    import DCN2
+ModuleNotFoundError: No module named 'DCN2
