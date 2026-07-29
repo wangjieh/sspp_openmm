@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+# torchrun --standalone --nproc_per_node=4 train_track1.py --data-root /mnt/ht2-nas2/EO_test/wj1/track1 --output-dir ./track1_runs/resunet_rfr_ddp --batch-size 2 --num-workers 2 --log-interval 20
+
 import argparse
 import json
 import random
