@@ -1,26 +1,114 @@
+2 errors detected in the compilation of "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/cuda/deform_conv_cuda.cu".
+[7/7] /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/x86_64-conda-linux-gnu-c++ -MMD -MF /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/build/temp.linux-x86_64-cpython-312/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/vision.o.d -march=nocona -mtune=haswell -ftree-vectorize -fPIC -fstack-protector-strong -fno-plt -O2 -ffunction-sections -pipe -isystem /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/targets/x86_64-linux/include -L/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/targets/x86_64-linux/lib -L/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/targets/x86_64-linux/lib/stubs -DNDEBUG -D_FORTIFY_SOURCE=2 -O2 -isystem /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/targets/x86_64-linux/include -L/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/targets/x86_64-linux/lib -L/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/targets/x86_64-linux/lib/stubs -fPIC -DWITH_CUDA -I/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/include -I/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/include/python3.12 -c -c /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/vision.cpp -o /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/build/temp.linux-x86_64-cpython-312/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/vision.o -DTORCH_API_INCLUDE_EXTENSION_H '-DPYBIND11_COMPILER_TYPE="_gcc"' '-DPYBIND11_STDLIB="_libstdcpp"' '-DPYBIND11_BUILD_ABI="_cxxabi1018"' -DTORCH_EXTENSION_NAME=DCN2 -std=c++17
+In file included from /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/vision.cpp:2:
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_psroi_pooling.h: In function 'std::tuple<at::Tensor, at::Tensor> deform_psroi_pooling_forward(const at::Tensor&, const at::Tensor&, const at::Tensor&, int, float, int, int, int, int, int, float)':
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_psroi_pooling.h:23:19: warning: 'at::DeprecatedTypeProperties& at::Tensor::type() const' is deprecated: Tensor.type() is deprecated. Instead use Tensor.options(), which in many cases (e.g. in a constructor) is a drop-in replacement. If you were using data from type(), that is now available from Tensor itself, so instead of tensor.type().scalar_type(), use tensor.scalar_type() instead and instead of tensor.type().backend() use tensor.device(). [-Wdeprecated-declarations]
+   23 |     if (input.type().is_cuda())
+      |         ~~~~~~~~~~^~
+In file included from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/Tensor.h:3,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/Tensor.h:3,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/autograd/function_hook.h:3,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/autograd/cpp_hook.h:2,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/autograd/variable.h:6,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/autograd/autograd.h:3,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/api/include/torch/autograd.h:3,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/csrc/api/include/torch/all.h:7,
+                 from /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/torch/extension.h:5,
+                 from /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/cpu/deform_psroi_pooling_cpu.h:2,
+                 from /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_psroi_pooling.h:3:
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/TensorBody.h:225:30: note: declared here
+  225 |   DeprecatedTypeProperties & type() const {
+      |                              ^~~~
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_psroi_pooling.h: In function 'std::tuple<at::Tensor, at::Tensor> deform_psroi_pooling_backward(const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, int, float, int, int, int, int, int, float)':
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_psroi_pooling.h:59:19: warning: 'at::DeprecatedTypeProperties& at::Tensor::type() const' is deprecated: Tensor.type() is deprecated. Instead use Tensor.options(), which in many cases (e.g. in a constructor) is a drop-in replacement. If you were using data from type(), that is now available from Tensor itself, so instead of tensor.type().scalar_type(), use tensor.scalar_type() instead and instead of tensor.type().backend() use tensor.device(). [-Wdeprecated-declarations]
+   59 |     if (input.type().is_cuda())
+      |         ~~~~~~~~~~^~
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/TensorBody.h:225:30: note: declared here
+  225 |   DeprecatedTypeProperties & type() const {
+      |                              ^~~~
+In file included from /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/vision.cpp:3:
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_conv.h: In function 'at::Tensor deform_conv_forward(const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, int, int, int, int, int, int, int, int, int, int, int)':
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_conv.h:27:19: warning: 'at::DeprecatedTypeProperties& at::Tensor::type() const' is deprecated: Tensor.type() is deprecated. Instead use Tensor.options(), which in many cases (e.g. in a constructor) is a drop-in replacement. If you were using data from type(), that is now available from Tensor itself, so instead of tensor.type().scalar_type(), use tensor.scalar_type() instead and instead of tensor.type().backend() use tensor.device(). [-Wdeprecated-declarations]
+   27 |     if (input.type().is_cuda())
+      |         ~~~~~~~~~~^~
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/TensorBody.h:225:30: note: declared here
+  225 |   DeprecatedTypeProperties & type() const {
+      |                              ^~~~
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_conv.h: In function 'std::vector<at::Tensor> deform_conv_backward(const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, int, int, int, int, int, int, int, int, int, int, int)':
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/deform_conv.h:63:19: warning: 'at::DeprecatedTypeProperties& at::Tensor::type() const' is deprecated: Tensor.type() is deprecated. Instead use Tensor.options(), which in many cases (e.g. in a constructor) is a drop-in replacement. If you were using data from type(), that is now available from Tensor itself, so instead of tensor.type().scalar_type(), use tensor.scalar_type() instead and instead of tensor.type().backend() use tensor.device(). [-Wdeprecated-declarations]
+   63 |     if (input.type().is_cuda())
+      |         ~~~~~~~~~~^~
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/TensorBody.h:225:30: note: declared here
+  225 |   DeprecatedTypeProperties & type() const {
+      |                              ^~~~
+In file included from /mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/vision.cpp:4:
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/modulated_deform_conv.h: In function 'at::Tensor modulated_deform_conv_forward(const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, int, int, int, int, int, int, int, int, int, int, int)':
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/modulated_deform_conv.h:28:19: warning: 'at::DeprecatedTypeProperties& at::Tensor::type() const' is deprecated: Tensor.type() is deprecated. Instead use Tensor.options(), which in many cases (e.g. in a constructor) is a drop-in replacement. If you were using data from type(), that is now available from Tensor itself, so instead of tensor.type().scalar_type(), use tensor.scalar_type() instead and instead of tensor.type().backend() use tensor.device(). [-Wdeprecated-declarations]
+   28 |     if (input.type().is_cuda())
+      |         ~~~~~~~~~~^~
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/TensorBody.h:225:30: note: declared here
+  225 |   DeprecatedTypeProperties & type() const {
+      |                              ^~~~
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/modulated_deform_conv.h: In function 'std::vector<at::Tensor> modulated_deform_conv_backward(const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, const at::Tensor&, int, int, int, int, int, int, int, int, int, int, int)':
+/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/src/modulated_deform_conv.h:65:19: warning: 'at::DeprecatedTypeProperties& at::Tensor::type() const' is deprecated: Tensor.type() is deprecated. Instead use Tensor.options(), which in many cases (e.g. in a constructor) is a drop-in replacement. If you were using data from type(), that is now available from Tensor itself, so instead of tensor.type().scalar_type(), use tensor.scalar_type() instead and instead of tensor.type().backend() use tensor.device(). [-Wdeprecated-declarations]
+   65 |     if (input.type().is_cuda())
+      |         ~~~~~~~~~~^~
+/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/include/ATen/core/TensorBody.h:225:30: note: declared here
+  225 |   DeprecatedTypeProperties & type() const {
+      |                              ^~~~
+ninja: build stopped: subcommand failed.
 Traceback (most recent call last):
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/tools/train.py", line 104, in <module>
-    main()
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/tools/train.py", line 100, in main
-    runner.train()
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1777, in train
-    model = self.train_loop.run()  # type: ignore
-            ^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 289, in run
-    self.run_iter(data_batch)
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 313, in run_iter
-    outputs = self.runner.model.train_step(
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/model/base_model/base_model.py", line 113, in train_step
-    data = self.data_preprocessor(data, True)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-    return forward_call(*args, **kwargs)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2595, in _run_ninja_build
+    subprocess.run(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/subprocess.py", line 571, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['ninja', '-v']' returned non-zero exit status 2.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/RFR-main_my/codes/model/dcn/setup.py", line 56, in <module>
+    setup(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/__init__.py", line 117, in setup
+    return distutils.core.setup(**attrs)  # type: ignore[return-value]
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/opencd/models/data_preprocessor.py", line 221, in forward
-    inputs = [(_input - self.mean) / self.std for _input in inputs]
-               ~~~~~~~^~~~~~~~~~~
-RuntimeError: The size of tensor a (7) must match the size of tensor b (6) at non-singleton dimension 0
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/core.py", line 186, in setup
+    return run_commands(dist)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/core.py", line 202, in run_commands
+    dist.run_commands()
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/dist.py", line 1000, in run_commands
+    self.run_command(cmd)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/dist.py", line 1107, in run_command
+    super().run_command(command)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/dist.py", line 1019, in run_command
+    cmd_obj.run()
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/command/build.py", line 135, in run
+    self.run_command(cmd_name)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/cmd.py", line 341, in run_command
+    self.distribution.run_command(command)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/dist.py", line 1107, in run_command
+    super().run_command(command)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/dist.py", line 1019, in run_command
+    cmd_obj.run()
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/command/build_ext.py", line 97, in run
+    _build_ext.run(self)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/command/build_ext.py", line 367, in run
+    self.build_extensions()
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 1072, in build_extensions
+    build_ext.build_extensions(self)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/command/build_ext.py", line 483, in build_extensions
+    self._build_extensions_serial()
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/command/build_ext.py", line 509, in _build_extensions_serial
+    self.build_extension(ext)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/command/build_ext.py", line 262, in build_extension
+    _build_ext.build_extension(self, ext)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/setuptools/_distutils/command/build_ext.py", line 564, in build_extension
+    objects = self.compiler.compile(
+              ^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 856, in unix_wrap_ninja_compile
+    _write_ninja_file_and_compile_objects(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2227, in _write_ninja_file_and_compile_objects
+    _run_ninja_build(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2612, in _run_ninja_build
+    raise RuntimeError(message) from e
