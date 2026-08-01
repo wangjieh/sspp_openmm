@@ -62,3 +62,8 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 1.千河模型在Ning2m上进行语义分割任务测评完成（以模型组在potsdam数据上的策略，仅做数据加载适配），miou为66.27。
 2.模型组变化检测任务代码的多卡训练适配。
 3.重新编写训练配置文件，按照epoch的方式进行训练更新，并完成1组训练配置的训练，最佳changed_fscored=83.88。
+
+2026年8月1日
+1.CAU_FLOOD数据调参，完成一组训练配置（50 epoch, AdamW, lr=5e-4, backbone_lr=lr*0.1），changed_F1=85.05。
+2.千河模型语义分割任务的全量微调训练适配。
+3.Ningbo2m数据调参，完成一组训练配置（40000iters, AdamW, lr=5e-5, backbone_lr=lr*0.1），miou=69.81。
