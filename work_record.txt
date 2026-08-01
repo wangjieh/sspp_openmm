@@ -64,6 +64,6 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 3.重新编写训练配置文件，按照epoch的方式进行训练更新，并完成1组训练配置的训练，最佳changed_fscored=83.88。
 
 2026年8月1日
-1.CAU_FLOOD数据调参，完成一组训练配置（50 epoch, AdamW, lr=5e-4, backbone_lr=lr*0.1），changed_F1=85.05。
+1.CAU_FLOOD数据在千河模型上的调参，完成一组训练配置（50 epoch, AdamW, lr=5e-4, backbone_lr=lr*0.1），changed_F1=85.05。
 2.千河模型语义分割任务的全量微调训练适配。
-3.Ningbo2m数据调参，完成一组训练配置（40000iters, AdamW, lr=5e-5, backbone_lr=lr*0.1），miou=69.81。
+3.Ningbo2m数据在千河模型上的调参，完成一组训练配置（40000iters, AdamW, lr=5e-5, backbone_lr=lr*0.1），miou=69.81。
