@@ -1,11 +1,182 @@
-class_weight=[
-    3.0,  # background: 1.73%
-    2.0,  # grassland
-    2.5,  # bareland
-    3.0,  # road: 3.05%
-    1.0,  # forest: 36.63%
-    1.7,  # river
-    1.4,  # cropland
-    1.8,  # residential
-    0.1,  # no-object query
+custom_imports = dict(
+    imports=[
+        "custom_models.dinov3_backbone",
+        'custom_datasets.ningbo2m_new',
+        'custom_datasets.customPotsdam',
+    ],
+    allow_failed_imports=False,
+)
+
+_base_ = ["../mask2former_head.py",]
+
+randomness = dict(deterministic=False, seed=0)
+find_unused_parameters = True
+default_scope = 'mmseg'
+find_unused_parameters = True
+model_wrapper_cfg = dict(type='MMDistributedDataParallel', find_unused_parameters=True)
+base_learning_rate = 1e-3
+weight_decay = 0.01
+warmup_iters = 1500
+warmup_ratio = 1e-6
+max_epochs = 50
+
+# ── 路径 ───────────────────────────────────────────────────────────────
+DINO_CKPT = "/mnt/htzzb2/EO_test/weights_form_model_group/stage2+stage3-zhejiang/9999.pth"
+DATA_ROOT = '/mnt/htzzb2/EO_test/datasets/Ningbo-2m_new'
+work_dir = '/mnt/htzzb2/EO_test/wj1/qh2_work_dirs/ningbo2m_new_dinov3_m2f_tune12_50e_512x512'
+
+# ── backbone: 纯 DINOv3 vit_large（从 fusion ckpt 取 backbone 权重，冻结）──
+img_size = 512
+num_classes = 8         # potsdam: 原始标签 1-5 (0/6 ignored → remapped to 0-4)
+
+data_preprocessor = dict(
+    type="SegDataPreProcessor",
+    _delete_=True,
+    mean=[73.95853051, 82.62911514, 80.51181812],
+    std=[51.25007138, 41.23240959, 38.55216712],
+    bgr_to_rgb=False,
+    pad_val=0,
+    seg_pad_val=255,
+    size=(img_size, img_size),
+    test_cfg=dict(size_divisor=32))
+
+model = dict(
+    data_preprocessor=data_preprocessor,
+    backbone=dict(
+        _delete_=True,
+        type="DINOv3BackboneMmseg",
+        arch="vit_large",
+        patch_size=16,
+        interaction_indexes=[5, 11, 17, 23],
+        n_storage_tokens=4,
+        layerscale_init=1e-5,
+        mask_k_bias=True,
+        img_size=img_size,
+        checkpoint=DINO_CKPT,
+        freeze_backbone=False,       # True=冻结ViT只训adapter+m2f; False=全参微调
+        finetune_vit=True,         # True=forward中ViT参与反传(需freeze_backbone=False)
+    ),
+    decode_head=dict(
+        in_channels=[1024, 1024, 1024, 1024],
+        strides=[4, 8, 16, 32],
+        num_classes=num_classes,
+        num_queries=50,
+        loss_cls=dict(
+            type="mmdet.CrossEntropyLoss", use_sigmoid=False,
+            loss_weight=2.0, reduction="mean", class_weight=[1.0] * (num_classes + 1)),
+    ),
+)
+
+# ── 数据流水线（potsdam HR 数据，无 fusion/olmoearth/fake_h5）───────────
+train_pipeline = [
+    dict(type='LoadNingbo2mRaster', img_size=img_size),
+    dict(type="CustomRandomRotate90", prob=0.5),
+    dict(type="RandomFlip", prob=0.5, direction="horizontal"),
+    dict(type="RandomFlip", prob=0.5, direction="vertical"),
+    dict(type='RandomCrop', crop_size=(img_size, img_size), cat_max_ratio=1.0),
+    dict(type="PackSegInputs"),
 ]
+val_pipeline = [
+    dict(type='LoadNingbo2mRaster', img_size=img_size),
+    dict(type='PackSegInputs'),
+]
+
+train_dataloader = dict(
+    _delete_=True,
+    batch_size=8,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    dataset=dict(
+        type='Ningbo2mNewDataset',
+        data_root=DATA_ROOT,
+        split='train',
+        pipeline=train_pipeline,
+    ),
+)
+val_dataloader = dict(
+    _delete_=True,
+    batch_size=8,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
+        type='Ningbo2mNewDataset',
+        data_root=DATA_ROOT,
+        split='val',
+        pipeline=val_pipeline,
+    ),
+)
+test_dataloader = dict(
+    _delete_=True,
+    batch_size=8,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
+        type='Ningbo2mNewDataset',
+        data_root=DATA_ROOT,
+        split='val',
+        pipeline=val_pipeline,
+    ),
+)
+
+val_evaluator = dict(type="IoUMetric", iou_metrics=["mIoU", "mFscore"], _delete_=True)
+test_evaluator = val_evaluator
+
+# ── optimizer & schedule ──────────────────────────────────────────────
+embed_multi = dict(lr_mult=1.0, decay_mult=0.0)
+
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(
+        type='AdamW', lr=base_learning_rate, weight_decay=weight_decay),
+    paramwise_cfg=dict(
+        custom_keys=dict(backbone=dict(lr_mult=0.1)),norm_decay_mult=0.0),
+    clip_grad=dict(max_norm=1, norm_type=2))
+param_scheduler = [
+    dict(
+        type='LinearLR',
+        start_factor=warmup_ratio,
+        by_epoch=False,
+        begin=0,
+        end=warmup_iters),
+    dict(
+        type='PolyLR',
+        eta_min=0.0,
+        power=1.0,
+        begin=0,
+        end=max_epochs,
+        by_epoch=True,
+        convert_to_iter_based=True),
+]
+    
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+val_cfg = dict(type='ValLoop')
+test_cfg = dict(type='TestLoop')
+
+custom_hooks = []
+
+default_hooks = dict(
+    timer=dict(type='IterTimerHook'),
+    logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=True),
+    param_scheduler=dict(type='ParamSchedulerHook'),
+    checkpoint=dict(
+        type='CheckpointHook',
+        by_epoch=True,
+        interval=1,
+        save_best='mIoU',
+        rule='greater',
+        max_keep_ckpts=3),
+    sampler_seed=dict(type='DistSamplerSeedHook'),
+    visualization=dict(type='SegVisualizationHook'))
+
+env_cfg = dict(
+    cudnn_benchmark=True,
+    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
+    dist_cfg=dict(backend='nccl'))
+
+vis_backends = [dict(type='LocalVisBackend')]
+visualizer = dict(
+    type='SegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+log_processor = dict(by_epoch=True)
+log_level = 'INFO'
+load_from = None
+resume = False
