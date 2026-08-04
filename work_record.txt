@@ -73,3 +73,9 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 2.完成Ningbo2m在（50 epoch, AdamW, lr=5e-5, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU）配置下的测评，mIoU=70.86（sota_mIoU=72.06），已更新到调参表中。
 3.完成Ningbo2m在（50 epoch, AdamW, lr=5e-5, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=70.80（sota_mIoU=72.06），已更新到调参表中。
 4.完成Ningbo2m在（50 epoch, AdamW, lr=8e-5, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=71.69（sota_mIoU=72.06），已更新到调参表中。
+
+2026年8月4日
+1.完成CAU_FLOOD数据在（50 epoch, AdamW, lr=2e-4, backbone_lr=lr*0.1；改为50epoch；添加早停，patience=10；保存最佳mFscore权重；去除EMA-hook；去除原始数据增强中关于图像颜色的增强）配置下的测评，changed_F1=87.25（sota_changed_F1=85.71），已更新到调参表中。
+2.完成Ningbo2m在（50 epoch, AdamW, lr=5e-5, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=70.80（sota_mIoU=72.06），已更新到调参表中。
+3.完成Ningbo2m在（50 epoch, AdamW, lr=8e-5, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=71.69（sota_mIoU=72.06），已更新到调参表中。
+4.完成Ningbo2m在（50 epoch, AdamW, lr=1e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=71.95（sota_mIoU=72.06），已更新到调参表中。
