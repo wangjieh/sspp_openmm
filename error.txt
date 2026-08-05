@@ -1,283 +1,274 @@
-像素值            数量          占比
-     0      28650597     1.6747%
-     1     156933986     9.1734%
-     2      96766971     5.6564%
-     3      50470092     2.9502%
-     4     606239149    35.4370%
-     5     215431691    12.5928%
-     6     309273151    18.0782%
-     7     191431409    11.1899%
-   255      55554698     3.2474%
+"""Distributed class-aware sampler for the fixed-size Ningbo2m tiles.
 
-[rank2]: Traceback (most recent call last):
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank2]:     main()
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank2]:     runner.train()
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank2]:     self._train_loop = self.build_train_loop(
-[rank2]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank2]:     loop = LOOPS.build(
-[rank2]:            ^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank2]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank2]:     obj = obj_cls(**args)  # type: ignore
-[rank2]:           ^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank2]:     super().__init__(runner, dataloader)
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank2]:     self.dataloader = runner.build_dataloader(
-[rank2]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank2]:     sampler = DATA_SAMPLERS.build(
-[rank2]:               ^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank2]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank2]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank2]:     obj = obj_cls(**args)  # type: ignore
-[rank2]:           ^^^^^^^^^^^^^^^
-[rank2]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank2]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank2]: ValueError: The class-aware sampler received an empty dataset.
-[rank1]: Traceback (most recent call last):
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank1]:     main()
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank1]:     runner.train()
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank1]:     self._train_loop = self.build_train_loop(
-[rank1]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank1]:     loop = LOOPS.build(
-[rank1]:            ^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank1]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank1]:     obj = obj_cls(**args)  # type: ignore
-[rank1]:           ^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank1]:     super().__init__(runner, dataloader)
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank1]:     self.dataloader = runner.build_dataloader(
-[rank1]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank1]:     sampler = DATA_SAMPLERS.build(
-[rank1]:               ^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank1]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank1]:     obj = obj_cls(**args)  # type: ignore
-[rank1]:           ^^^^^^^^^^^^^^^
-[rank1]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank1]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank1]: ValueError: The class-aware sampler received an empty dataset.
-[rank3]: Traceback (most recent call last):
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank3]:     main()
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank3]:     runner.train()
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank3]:     self._train_loop = self.build_train_loop(
-[rank3]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank3]:     loop = LOOPS.build(
-[rank3]:            ^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank3]:     obj = obj_cls(**args)  # type: ignore
-[rank3]:           ^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank3]:     super().__init__(runner, dataloader)
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank3]:     self.dataloader = runner.build_dataloader(
-[rank3]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank3]:     sampler = DATA_SAMPLERS.build(
-[rank3]:               ^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank3]:     obj = obj_cls(**args)  # type: ignore
-[rank3]:           ^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank3]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank3]: ValueError: The class-aware sampler received an empty dataset.
-[rank4]: Traceback (most recent call last):
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank4]:     main()
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank4]:     runner.train()
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank4]:     self._train_loop = self.build_train_loop(
-[rank4]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank4]:     loop = LOOPS.build(
-[rank4]:            ^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank4]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank4]:     obj = obj_cls(**args)  # type: ignore
-[rank4]:           ^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank4]:     super().__init__(runner, dataloader)
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank4]:     self.dataloader = runner.build_dataloader(
-[rank4]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank4]:     sampler = DATA_SAMPLERS.build(
-[rank4]:               ^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank4]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank4]:     obj = obj_cls(**args)  # type: ignore
-[rank4]:           ^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank4]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank4]: ValueError: The class-aware sampler received an empty dataset.
-[rank0]: Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank0]:     runner.train()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank0]:     self._train_loop = self.build_train_loop(
-[rank0]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank0]:     loop = LOOPS.build(
-[rank0]:            ^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank0]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank0]:     obj = obj_cls(**args)  # type: ignore
-[rank0]:           ^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank0]:     super().__init__(runner, dataloader)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank0]:     self.dataloader = runner.build_dataloader(
-[rank0]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank0]:     sampler = DATA_SAMPLERS.build(
-[rank0]:               ^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank0]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank0]:     obj = obj_cls(**args)  # type: ignore
-[rank0]:           ^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank0]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank0]: ValueError: The class-aware sampler received an empty dataset.
-[rank6]: Traceback (most recent call last):
-[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank6]:     main()
-[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank6]:     runner.train()
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank6]:     self._train_loop = self.build_train_loop(
-[rank6]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank6]:     loop = LOOPS.build(
-[rank6]:            ^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank6]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank6]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank6]:     obj = obj_cls(**args)  # type: ignore
-[rank6]:           ^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank6]:     super().__init__(runner, dataloader)
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank6]:     self.dataloader = runner.build_dataloader(
-[rank6]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank6]:     sampler = DATA_SAMPLERS.build(
-[rank6]:               ^^^^^^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank6]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank6]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank6]:     obj = obj_cls(**args)  # type: ignore
-[rank6]:           ^^^^^^^^^^^^^^^
-[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank6]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank6]: ValueError: The class-aware sampler received an empty dataset.
-[rank7]: Traceback (most recent call last):
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank7]:     main()
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank7]:     runner.train()
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank7]:     self._train_loop = self.build_train_loop(
-[rank7]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank7]:     loop = LOOPS.build(
-[rank7]:            ^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank7]:     obj = obj_cls(**args)  # type: ignore
-[rank7]:           ^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank7]:     super().__init__(runner, dataloader)
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank7]:     self.dataloader = runner.build_dataloader(
-[rank7]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank7]:     sampler = DATA_SAMPLERS.build(
-[rank7]:               ^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank7]:     obj = obj_cls(**args)  # type: ignore
-[rank7]:           ^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank7]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank7]: ValueError: The class-aware sampler received an empty dataset.
-[rank5]: Traceback (most recent call last):
-[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank5]:     main()
-[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 100, in main
-[rank5]:     runner.train()
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1728, in train
-[rank5]:     self._train_loop = self.build_train_loop(
-[rank5]:                        ^^^^^^^^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1520, in build_train_loop
-[rank5]:     loop = LOOPS.build(
-[rank5]:            ^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank5]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank5]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank5]:     obj = obj_cls(**args)  # type: ignore
-[rank5]:           ^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 46, in __init__
-[rank5]:     super().__init__(runner, dataloader)
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/base_loop.py", line 26, in __init__
-[rank5]:     self.dataloader = runner.build_dataloader(
-[rank5]:                       ^^^^^^^^^^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1390, in build_dataloader
-[rank5]:     sampler = DATA_SAMPLERS.build(
-[rank5]:               ^^^^^^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank5]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank5]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank5]:     obj = obj_cls(**args)  # type: ignore
-[rank5]:           ^^^^^^^^^^^^^^^
-[rank5]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_datasets/ningbo_class_aware_sampler.py", line 68, in __init__
-[rank5]:     raise ValueError('The class-aware sampler received an empty dataset.')
-[rank5]: ValueError: The class-aware sampler received an empty dataset.
+The sampler changes only how often a training tile is selected.  It does not
+modify images, masks, geospatial metadata, or the segmentation loss.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from typing import Any, Sequence
+
+import numpy as np
+import rasterio
+import torch
+import torch.distributed as dist
+from mmengine.dist import get_dist_info
+from torch.utils.data import Sampler
+
+from mmseg.registry import DATA_SAMPLERS
+
+
+@DATA_SAMPLERS.register_module()
+class NingboClassAwareDistributedSampler(Sampler[int]):
+    """Sample Ningbo2m training tiles with class-aware distributed weights.
+
+    A rank-0 process builds a compact JSON cache containing valid-pixel counts
+    for every training tile.  A white RGB pixel is treated as ignore, matching
+    :class:`LoadNingbo2mRaster`.  At every epoch, all ranks deterministically
+    generate the same weighted global index list and then take disjoint
+    rank-strided subsets from it.  This keeps DDP step counts synchronized.
+
+    Args:
+        dataset: The built training dataset.  It must expose ``data_list`` with
+            ``img_path`` and ``seg_map_path`` fields.
+        stats_path: JSON cache path for per-tile class statistics.
+        class_presence_thresholds: Minimum valid-pixel ratio for each semantic
+            class before that class contributes its sampling bonus.
+        class_bonus: Additive sampling bonus for each semantic class.
+        base_weight: Weight assigned to an ordinary tile.
+        max_weight: Upper bound on a tile's final weight.
+        ignore_index: Ignore label used by the dataset.
+        num_classes: Number of semantic classes.
+        seed: Base random seed. ``set_epoch`` adds the epoch number.
+        round_up: Match the standard distributed sampler behavior by padding
+            the global index count to a multiple of world size.
+    """
+
+    _CACHE_VERSION = 1
+
+    def __init__(
+        self,
+        dataset: Any,
+        stats_path: str,
+        class_presence_thresholds: Sequence[float],
+        class_bonus: Sequence[float],
+        base_weight: float = 1.0,
+        max_weight: float = 3.0,
+        ignore_index: int = 255,
+        num_classes: int = 8,
+        seed: int = 0,
+        round_up: bool = True,
+    ) -> None:
+        if hasattr(dataset, 'full_init'):
+            dataset.full_init()
+
+        # Depending on the MMEngine construction path, a dataset can reach the
+        # sampler before ``data_list`` has been materialized.  Ningbo2m's
+        # ``load_data_list`` is the authoritative source of image/mask pairs,
+        # so materialize it explicitly as a safe fallback.
+        self.data_list = list(getattr(dataset, 'data_list', []) or [])
+        if not self.data_list:
+            if not hasattr(dataset, 'load_data_list'):
+                raise TypeError(
+                    'The class-aware sampler requires a dataset with '
+                    'load_data_list() or a populated data_list.')
+            self.data_list = list(dataset.load_data_list())
+            if not self.data_list:
+                raise ValueError(
+                    'The class-aware sampler received an empty dataset after '
+                    'calling load_data_list().')
+            dataset.data_list = self.data_list
+
+        self.dataset = dataset
+        self.stats_path = Path(stats_path)
+        self.num_classes = int(num_classes)
+        self.ignore_index = int(ignore_index)
+        self.base_weight = float(base_weight)
+        self.max_weight = float(max_weight)
+        self.seed = int(seed)
+        self.round_up = bool(round_up)
+        self.epoch = 0
+        self.rank, self.world_size = get_dist_info()
+
+        if self.num_classes <= 0:
+            raise ValueError(f'num_classes must be positive, got {num_classes}.')
+        if self.base_weight <= 0:
+            raise ValueError('base_weight must be positive.')
+        if self.max_weight < self.base_weight:
+            raise ValueError('max_weight must be at least base_weight.')
+        if len(class_presence_thresholds) != self.num_classes:
+            raise ValueError(
+                'class_presence_thresholds must have num_classes entries, '
+                f'got {len(class_presence_thresholds)} and {self.num_classes}.')
+        if len(class_bonus) != self.num_classes:
+            raise ValueError(
+                'class_bonus must have num_classes entries, '
+                f'got {len(class_bonus)} and {self.num_classes}.')
+
+        self.class_presence_thresholds = np.asarray(
+            class_presence_thresholds, dtype=np.float64)
+        self.class_bonus = np.asarray(class_bonus, dtype=np.float64)
+        if np.any(self.class_presence_thresholds < 0):
+            raise ValueError('class_presence_thresholds must be non-negative.')
+        if np.any(self.class_bonus < 0):
+            raise ValueError('class_bonus must be non-negative.')
+
+        dataset_size = len(self.data_list)
+        if self.round_up:
+            self.num_samples = int(np.ceil(dataset_size / self.world_size))
+            self.total_size = self.num_samples * self.world_size
+        else:
+            self.num_samples = int(np.ceil((dataset_size - self.rank) /
+                                           self.world_size))
+            self.total_size = dataset_size
+
+        counts = self._load_or_build_counts()
+        self.weights = self._counts_to_weights(counts)
+
+    def _distributed_barrier(self) -> None:
+        if dist.is_available() and dist.is_initialized():
+            dist.barrier()
+
+    def _cache_matches_dataset(self, cache: dict[str, Any]) -> bool:
+        if cache.get('version') != self._CACHE_VERSION:
+            return False
+        if cache.get('num_classes') != self.num_classes:
+            return False
+        if cache.get('ignore_index') != self.ignore_index:
+            return False
+
+        samples = cache.get('samples')
+        data_list = self.data_list
+        if not isinstance(samples, list) or len(samples) != len(data_list):
+            return False
+
+        for cached, data_info in zip(samples, data_list):
+            if (cached.get('img_path') != data_info['img_path'] or
+                    cached.get('seg_map_path') != data_info['seg_map_path']):
+                return False
+            counts = cached.get('class_counts')
+            if not isinstance(counts, list) or len(counts) != self.num_classes:
+                return False
+        return True
+
+    def _read_cache(self) -> dict[str, Any] | None:
+        if not self.stats_path.is_file():
+            return None
+        try:
+            with self.stats_path.open('r', encoding='utf-8') as file:
+                cache = json.load(file)
+        except (OSError, json.JSONDecodeError):
+            return None
+        return cache if self._cache_matches_dataset(cache) else None
+
+    def _build_cache(self) -> dict[str, Any]:
+        samples = []
+        for data_info in self.data_list:
+            img_path = data_info['img_path']
+            seg_map_path = data_info['seg_map_path']
+            class_counts, valid_pixels = self._read_tile_statistics(
+                img_path, seg_map_path)
+            samples.append(dict(
+                img_path=img_path,
+                seg_map_path=seg_map_path,
+                class_counts=class_counts.tolist(),
+                valid_pixels=valid_pixels,
+            ))
+
+        return dict(
+            version=self._CACHE_VERSION,
+            num_classes=self.num_classes,
+            ignore_index=self.ignore_index,
+            samples=samples,
+        )
+
+    def _write_cache_atomically(self, cache: dict[str, Any]) -> None:
+        self.stats_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = self.stats_path.with_name(
+            f'{self.stats_path.name}.tmp.{os.getpid()}')
+        try:
+            with temporary_path.open('w', encoding='utf-8') as file:
+                json.dump(cache, file, ensure_ascii=False, separators=(',', ':'))
+            os.replace(temporary_path, self.stats_path)
+        finally:
+            if temporary_path.exists():
+                temporary_path.unlink()
+
+    def _load_or_build_counts(self) -> np.ndarray:
+        cache = self._read_cache()
+        if cache is None and self.rank == 0:
+            cache = self._build_cache()
+            self._write_cache_atomically(cache)
+
+        self._distributed_barrier()
+        if cache is None:
+            cache = self._read_cache()
+        if cache is None:
+            raise RuntimeError(
+                f'Unable to read class-aware sampling cache: {self.stats_path}')
+
+        return np.asarray(
+            [sample['class_counts'] for sample in cache['samples']],
+            dtype=np.float64)
+
+    def _read_tile_statistics(
+        self, img_path: str, seg_map_path: str
+    ) -> tuple[np.ndarray, int]:
+        """Read raster values only; no geospatial operation is performed."""
+        with rasterio.open(img_path) as source:
+            if source.count < 3:
+                raise ValueError(
+                    f'Ningbo2m image must contain at least 3 bands: {img_path}')
+            rgb = source.read((1, 2, 3))
+        with rasterio.open(seg_map_path) as source:
+            if source.count != 1:
+                raise ValueError(
+                    f'Ningbo2m mask must contain exactly 1 band: {seg_map_path}')
+            label = source.read(1)
+
+        white_pixels = np.all(rgb == 255, axis=0)
+        if white_pixels.shape != label.shape:
+            raise ValueError(
+                f'Image and mask shapes do not match: {img_path} and '
+                f'{seg_map_path}.')
+
+        valid = (~white_pixels & (label != self.ignore_index) &
+                 (label >= 0) & (label < self.num_classes))
+        valid_labels = label[valid].astype(np.int64, copy=False)
+        class_counts = np.bincount(
+            valid_labels, minlength=self.num_classes)[:self.num_classes]
+        return class_counts.astype(np.int64, copy=False), int(valid.sum())
+
+    def _counts_to_weights(self, class_counts: np.ndarray) -> torch.Tensor:
+        valid_pixels = class_counts.sum(axis=1, keepdims=True)
+        class_ratios = np.divide(
+            class_counts,
+            valid_pixels,
+            out=np.zeros_like(class_counts, dtype=np.float64),
+            where=valid_pixels > 0,
+        )
+        class_is_present = class_ratios >= self.class_presence_thresholds
+        weights = self.base_weight + class_is_present @ self.class_bonus
+        weights = np.clip(weights, self.base_weight, self.max_weight)
+        return torch.as_tensor(weights, dtype=torch.double)
+
+    def __iter__(self):
+        generator = torch.Generator()
+        generator.manual_seed(self.seed + self.epoch)
+        global_indices = torch.multinomial(
+            self.weights,
+            self.total_size,
+            replacement=True,
+            generator=generator,
+        ).tolist()
+        rank_indices = global_indices[self.rank:self.total_size:self.world_size]
+        return iter(rank_indices)
+
+    def __len__(self) -> int:
+        return self.num_samples
+
+    def set_epoch(self, epoch: int) -> None:
+        self.epoch = int(epoch)
