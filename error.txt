@@ -1,21 +1,564 @@
-[rank4]:     return self.attn(
-[rank4]:            ^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
-[rank4]:     return self._call_impl(*args, **kwargs)
-[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
-[rank4]:     return forward_call(*args, **kwargs)
-[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 395, in new_func
-[rank4]:     output = old_func(*args, **kwargs)
-[rank4]:              ^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/ops/multi_scale_deform_attn.py", line 371, in forward
-[rank4]:     output = MultiScaleDeformableAttnFunction.apply(
-[rank4]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/autograd/function.py", line 576, in apply
-[rank4]:     return super().apply(*args, **kwargs)  # type: ignore[misc]
-[rank4]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmcv/mmcv/ops/multi_scale_deform_attn.py", line 65, in forward
-[rank4]:     output = ext_module.ms_deform_attn_forward(
-[rank4]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank4]: NotImplementedError: "ms_deform_attn_forward_cuda" not implemented for 'BFloat16'
+"""Bidirectional ViT-Adapter backbone for DINOv3 dense prediction.
+
+This module is intentionally independent from ``dinov3_backbone.py``.  It
+keeps the same four MMSegmentation feature outputs while changing the adapter
+interaction to the complete bidirectional pattern:
+
+    CNN spatial pyramid -> Injector -> DINOv3 block segment -> Extractor.
+
+The original DINOv3 backbone wrapper remains available unchanged.
+"""
+
+import contextlib
+import sys as _sys
+import types as _types
+from typing import Any, Iterable, List, Optional, Sequence, Tuple
+
+_MOCKS = {
+    'dinov3.models.RS_vision_transformer': {},
+    'dinov3.eval.utils': {'ModelWithIntermediateLayers': _types.new_class('_MIL', ())},
+}
+for _name, _attrs in _MOCKS.items():
+    if _name not in _sys.modules:
+        _mod = _types.ModuleType(_name)
+        for _key, _value in _attrs.items():
+            setattr(_mod, _key, _value)
+        _sys.modules[_name] = _mod
+
+_DINOV3_ROOT = '/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/dinov3-main'
+if _DINOV3_ROOT not in _sys.path:
+    _sys.path.insert(0, _DINOV3_ROOT)
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from mmcv.cnn.bricks.transformer import MultiScaleDeformableAttention
+from mmengine.model import BaseModule
+from mmseg.registry import MODELS
+from torch import Tensor
+
+from dinov3.eval.segmentation.models.backbone.dinov3_adapter import DropPath, SpatialPriorModule
+from dinov3.models.vision_transformer import vit_base, vit_large, vit_small
+
+
+def _reference_points(
+    spatial_shapes: Sequence[Tuple[int, int]], device: torch.device, num_levels: int
+) -> Tensor:
+    """Create normalized reference points for deformable attention."""
+    references = []
+    for height, width in spatial_shapes:
+        y, x = torch.meshgrid(
+            torch.linspace(0.5, height - 0.5, height, dtype=torch.float32, device=device),
+            torch.linspace(0.5, width - 0.5, width, dtype=torch.float32, device=device),
+            indexing='ij',
+        )
+        references.append(torch.stack((x.reshape(-1) / width, y.reshape(-1) / height), dim=-1))
+    reference_points = torch.cat(references, dim=0).unsqueeze(0).unsqueeze(2)
+    return reference_points.expand(-1, -1, num_levels, -1)
+
+
+def _level_start_index(spatial_shapes: Tensor) -> Tensor:
+    return torch.cat((spatial_shapes.new_zeros((1,)), spatial_shapes.prod(1).cumsum(0)[:-1]))
+
+
+class _MMCVDeformAttention(nn.Module):
+    """Match DINOv3's MSDeformAttn interface with MMCV's CUDA operator.
+
+    MMCV's compiled ``ms_deform_attn_forward_cuda`` kernel supports FP32/FP16
+    but not BF16.  DINOv3 itself is run under BF16 autocast, so this wrapper
+    locally disables autocast and executes only the deformable-attention
+    operator in FP32.
+    """
+
+    def __init__(self, embed_dims: int, num_levels: int, num_heads: int, num_points: int) -> None:
+        super().__init__()
+        self.attn = MultiScaleDeformableAttention(
+            embed_dims=embed_dims,
+            num_levels=num_levels,
+            num_heads=num_heads,
+            num_points=num_points,
+            batch_first=True,
+        )
+
+    def init_weights(self) -> None:
+        self.attn.init_weights()
+
+    def forward(
+        self,
+        query: Tensor,
+        reference_points: Tensor,
+        value: Tensor,
+        spatial_shapes: Tensor,
+        level_start_index: Tensor,
+    ) -> Tensor:
+        if query.is_cuda:
+            # ``MultiScaleDeformableAttention`` dispatches to a CUDA extension
+            # which raises NotImplementedError for BF16 tensors.  Explicit
+            # casting preserves gradients while keeping all surrounding DINOv3
+            # blocks in BF16 autocast.
+            with torch.autocast(device_type='cuda', enabled=False):
+                return self.attn(
+                    query=query.float(),
+                    value=value.float(),
+                    identity=torch.zeros_like(query, dtype=torch.float32),
+                    query_pos=None,
+                    key_padding_mask=None,
+                    reference_points=reference_points.float(),
+                    spatial_shapes=spatial_shapes,
+                    level_start_index=level_start_index,
+                )
+        return self.attn(
+            query=query,
+            value=value,
+            identity=torch.zeros_like(query),
+            query_pos=None,
+            key_padding_mask=None,
+            reference_points=reference_points,
+            spatial_shapes=spatial_shapes,
+            level_start_index=level_start_index,
+        )
+
+
+class _ConvFFN(nn.Module):
+    """The convolutional FFN used to refine concatenated pyramid tokens."""
+
+    def __init__(self, embed_dims: int, hidden_dims: int, drop: float = 0.0) -> None:
+        super().__init__()
+        self.fc1 = nn.Linear(embed_dims, hidden_dims)
+        self.depthwise = nn.Conv2d(hidden_dims, hidden_dims, 3, padding=1, groups=hidden_dims)
+        self.act = nn.GELU()
+        self.fc2 = nn.Linear(hidden_dims, embed_dims)
+        self.drop = nn.Dropout(drop)
+
+    def forward(self, x: Tensor, token_shape: Tuple[int, int]) -> Tensor:
+        height, width = token_shape
+        x = self.fc1(x)
+        batch_size, token_count, channels = x.shape
+        tokens_per_base_level = token_count // 21
+        if tokens_per_base_level * 21 != token_count:
+            raise ValueError('The spatial pyramid token count must have the 16:4:1 ratio.')
+
+        high = x[:, :16 * tokens_per_base_level].transpose(1, 2).reshape(
+            batch_size, channels, height * 2, width * 2
+        )
+        middle = x[:, 16 * tokens_per_base_level:20 * tokens_per_base_level].transpose(1, 2).reshape(
+            batch_size, channels, height, width
+        )
+        low = x[:, 20 * tokens_per_base_level:].transpose(1, 2).reshape(
+            batch_size, channels, height // 2, width // 2
+        )
+        high = self.depthwise(high).flatten(2).transpose(1, 2)
+        middle = self.depthwise(middle).flatten(2).transpose(1, 2)
+        low = self.depthwise(low).flatten(2).transpose(1, 2)
+
+        x = torch.cat((high, middle, low), dim=1)
+        x = self.act(x)
+        x = self.drop(x)
+        x = self.fc2(x)
+        return self.drop(x)
+
+
+class _BidirectionalInjector(nn.Module):
+    """Inject multi-scale CNN spatial priors into DINOv3 patch tokens."""
+
+    def __init__(
+        self,
+        embed_dims: int,
+        num_heads: int,
+        num_points: int,
+        init_values: float,
+    ) -> None:
+        super().__init__()
+        self.query_norm = nn.LayerNorm(embed_dims, eps=1e-6)
+        self.feature_norm = nn.LayerNorm(embed_dims, eps=1e-6)
+        self.attn = _MMCVDeformAttention(embed_dims, num_levels=3, num_heads=num_heads, num_points=num_points)
+        self.gamma = nn.Parameter(torch.full((embed_dims,), init_values))
+
+    def forward(
+        self,
+        tokens: Tensor,
+        pyramid_tokens: Tensor,
+        reference_points: Tensor,
+        spatial_shapes: Tensor,
+        level_start_index: Tensor,
+    ) -> Tensor:
+        update = self.attn(
+            self.query_norm(tokens),
+            reference_points,
+            self.feature_norm(pyramid_tokens),
+            spatial_shapes,
+            level_start_index,
+        )
+        return tokens + self.gamma.view(1, 1, -1) * update
+
+
+class _BidirectionalExtractor(nn.Module):
+    """Write DINOv3 patch-token semantics back into the CNN pyramid."""
+
+    def __init__(
+        self,
+        embed_dims: int,
+        num_heads: int,
+        num_points: int,
+        cffn_ratio: float,
+        drop_path: float,
+    ) -> None:
+        super().__init__()
+        self.query_norm = nn.LayerNorm(embed_dims, eps=1e-6)
+        self.feature_norm = nn.LayerNorm(embed_dims, eps=1e-6)
+        self.attn = _MMCVDeformAttention(embed_dims, num_levels=1, num_heads=num_heads, num_points=num_points)
+        self.ffn_norm = nn.LayerNorm(embed_dims, eps=1e-6)
+        self.ffn = _ConvFFN(embed_dims, max(int(embed_dims * cffn_ratio), 1))
+        self.drop_path = DropPath(drop_path) if drop_path > 0 else nn.Identity()
+
+    def forward(
+        self,
+        pyramid_tokens: Tensor,
+        patch_tokens: Tensor,
+        reference_points: Tensor,
+        spatial_shapes: Tensor,
+        level_start_index: Tensor,
+        token_shape: Tuple[int, int],
+    ) -> Tensor:
+        update = self.attn(
+            self.query_norm(pyramid_tokens),
+            reference_points,
+            self.feature_norm(patch_tokens),
+            spatial_shapes,
+            level_start_index,
+        )
+        pyramid_tokens = pyramid_tokens + update
+        return pyramid_tokens + self.drop_path(self.ffn(self.ffn_norm(pyramid_tokens), token_shape))
+
+
+class _BidirectionalInteraction(nn.Module):
+    """One Injector -> DINO block segment -> Extractor interaction stage."""
+
+    def __init__(
+        self,
+        embed_dims: int,
+        num_heads: int,
+        num_points: int,
+        init_values: float,
+        cffn_ratio: float,
+        drop_path: float,
+        use_extra_extractor: bool,
+    ) -> None:
+        super().__init__()
+        self.injector = _BidirectionalInjector(embed_dims, num_heads, num_points, init_values)
+        self.extractor = _BidirectionalExtractor(
+            embed_dims, num_heads, num_points, cffn_ratio, drop_path
+        )
+        self.extra_extractors = nn.ModuleList(
+            [
+                _BidirectionalExtractor(
+                    embed_dims, num_heads, num_points, cffn_ratio, drop_path
+                )
+                for _ in range(2)
+            ]
+            if use_extra_extractor
+            else []
+        )
+
+    def forward(
+        self,
+        tokens: Tensor,
+        pyramid_tokens: Tensor,
+        blocks: Iterable[nn.Module],
+        rope_sincos: Optional[Tensor],
+        prefix_token_count: int,
+        inject_reference_points: Tensor,
+        inject_spatial_shapes: Tensor,
+        inject_level_start_index: Tensor,
+        extract_reference_points: Tensor,
+        extract_spatial_shapes: Tensor,
+        extract_level_start_index: Tensor,
+        token_shape: Tuple[int, int],
+    ) -> Tuple[Tensor, Tensor]:
+        prefix_tokens = tokens[:, :prefix_token_count]
+        patch_tokens = tokens[:, prefix_token_count:]
+        patch_tokens = self.injector(
+            patch_tokens,
+            pyramid_tokens,
+            inject_reference_points,
+            inject_spatial_shapes,
+            inject_level_start_index,
+        )
+        tokens = torch.cat((prefix_tokens, patch_tokens), dim=1)
+        for block in blocks:
+            tokens = block(tokens, rope_sincos)
+
+        patch_tokens = tokens[:, prefix_token_count:]
+        pyramid_tokens = self.extractor(
+            pyramid_tokens,
+            patch_tokens,
+            extract_reference_points,
+            extract_spatial_shapes,
+            extract_level_start_index,
+            token_shape,
+        )
+        for extractor in self.extra_extractors:
+            pyramid_tokens = extractor(
+                pyramid_tokens,
+                patch_tokens,
+                extract_reference_points,
+                extract_spatial_shapes,
+                extract_level_start_index,
+                token_shape,
+            )
+        return tokens, pyramid_tokens
+
+
+@MODELS.register_module()
+class DINOv3FullAdapterBackbone(BaseModule):
+    """DINOv3 backbone with complete bidirectional ViT-Adapter interaction.
+
+    The default four stages use DINOv3 ViT-L blocks ``[0:6]``, ``[6:12]``,
+    ``[12:18]`` and ``[18:24]``.  All parameters remain trainable when
+    ``freeze_backbone=False`` and ``finetune_vit=True``.
+    """
+
+    _DEFAULT_INTERACTION_INDEXES = {
+        'vit_small': [2, 5, 8, 11],
+        'vit_base': [2, 5, 8, 11],
+        'vit_large': [5, 11, 17, 23],
+    }
+
+    def __init__(
+        self,
+        arch: str = 'vit_large',
+        patch_size: int = 16,
+        interaction_indexes: Optional[Sequence[int]] = None,
+        n_storage_tokens: int = 0,
+        layerscale_init: float = 1e-5,
+        mask_k_bias: bool = False,
+        img_size: int = 512,
+        checkpoint: Optional[str] = None,
+        freeze_backbone: bool = True,
+        finetune_vit: bool = False,
+        adapter_conv_inplane: int = 64,
+        adapter_num_points: int = 4,
+        adapter_num_heads: int = 16,
+        adapter_drop_path_rate: float = 0.3,
+        adapter_cffn_ratio: float = 0.25,
+        adapter_injector_init: float = 0.0,
+        adapter_use_extra_extractor: bool = True,
+        adapter_add_vit_feature: bool = True,
+        init_cfg: Optional[dict] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(init_cfg=None)
+        if arch not in {'vit_small', 'vit_base', 'vit_large'}:
+            raise ValueError(f'Unsupported DINOv3 architecture: {arch}')
+        if patch_size != 16:
+            raise ValueError('DINOv3FullAdapterBackbone currently requires patch_size=16.')
+
+        factory = {'vit_small': vit_small, 'vit_base': vit_base, 'vit_large': vit_large}[arch]
+        self.backbone = factory(
+            patch_size=patch_size,
+            img_size=img_size,
+            n_storage_tokens=n_storage_tokens,
+            layerscale_init=layerscale_init,
+            mask_k_bias=mask_k_bias,
+        )
+        self.backbone.init_weights()
+        if checkpoint:
+            self._load_backbone_checkpoint(checkpoint)
+            self.backbone.is_init = True
+
+        if interaction_indexes is None:
+            interaction_indexes = self._DEFAULT_INTERACTION_INDEXES[arch]
+        self.interaction_indexes = [int(index) for index in interaction_indexes]
+        self._validate_interaction_indexes()
+
+        self.embed_dim = self.backbone.embed_dim
+        self.patch_size = patch_size
+        self.finetune_vit = bool(finetune_vit)
+        self.add_vit_feature = bool(adapter_add_vit_feature)
+        self.prefix_token_count = 1 + int(n_storage_tokens)
+        self.level_embed = nn.Parameter(torch.zeros(3, self.embed_dim))
+        self.spm = SpatialPriorModule(inplanes=adapter_conv_inplane, embed_dim=self.embed_dim, with_cp=False)
+        self.interactions = nn.ModuleList(
+            [
+                _BidirectionalInteraction(
+                    embed_dims=self.embed_dim,
+                    num_heads=adapter_num_heads,
+                    num_points=adapter_num_points,
+                    init_values=adapter_injector_init,
+                    cffn_ratio=adapter_cffn_ratio,
+                    drop_path=adapter_drop_path_rate,
+                    use_extra_extractor=(
+                        stage_idx == len(self.interaction_indexes) - 1 and adapter_use_extra_extractor
+                    ),
+                )
+                for stage_idx in range(len(self.interaction_indexes))
+            ]
+        )
+        self.up = nn.ConvTranspose2d(self.embed_dim, self.embed_dim, 2, 2)
+        self.norm1 = nn.SyncBatchNorm(self.embed_dim)
+        self.norm2 = nn.SyncBatchNorm(self.embed_dim)
+        self.norm3 = nn.SyncBatchNorm(self.embed_dim)
+        self.norm4 = nn.SyncBatchNorm(self.embed_dim)
+
+        self.spm.apply(self._init_adapter_weights)
+        self.interactions.apply(self._init_adapter_weights)
+        self.up.apply(self._init_adapter_weights)
+        for module in self.interactions.modules():
+            if isinstance(module, _MMCVDeformAttention):
+                module.init_weights()
+        nn.init.normal_(self.level_embed)
+
+        if freeze_backbone and not finetune_vit:
+            self.backbone.requires_grad_(False)
+        else:
+            self.backbone.requires_grad_(True)
+
+    def _validate_interaction_indexes(self) -> None:
+        num_blocks = len(self.backbone.blocks)
+        if not self.interaction_indexes:
+            raise ValueError('interaction_indexes cannot be empty.')
+        if self.interaction_indexes != sorted(set(self.interaction_indexes)):
+            raise ValueError('interaction_indexes must be sorted and unique.')
+        if self.interaction_indexes[-1] >= num_blocks or self.interaction_indexes[0] < 0:
+            raise ValueError(f'interaction_indexes must be within [0, {num_blocks - 1}].')
+
+    @staticmethod
+    def _init_adapter_weights(module: nn.Module) -> None:
+        if isinstance(module, nn.Linear):
+            nn.init.trunc_normal_(module.weight, std=0.02)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, (nn.LayerNorm, nn.BatchNorm2d, nn.SyncBatchNorm)):
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+            if module.weight is not None:
+                nn.init.ones_(module.weight)
+        elif isinstance(module, (nn.Conv2d, nn.ConvTranspose2d)):
+            fan_out = module.kernel_size[0] * module.kernel_size[1] * module.out_channels // module.groups
+            module.weight.data.normal_(0, (2.0 / fan_out) ** 0.5)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+    def _load_backbone_checkpoint(self, checkpoint: str) -> None:
+        checkpoint_data = torch.load(checkpoint, map_location='cpu', weights_only=False)
+        if isinstance(checkpoint_data, dict):
+            for key in ('model', 'state_dict', 'teacher', 'student'):
+                if key in checkpoint_data and isinstance(checkpoint_data[key], dict):
+                    checkpoint_data = checkpoint_data[key]
+                    break
+        state_dict = {
+            key[len('backbone.'):]: value
+            for key, value in checkpoint_data.items()
+            if isinstance(value, Tensor) and key.startswith('backbone.')
+        }
+        incompatible = self.backbone.load_state_dict(state_dict, strict=False)
+        print(
+            '[DINOv3FullAdapter] checkpoint loaded: '
+            f'matched={len(state_dict) - len(incompatible.unexpected_keys)} '
+            f'missing={len(incompatible.missing_keys)} '
+            f'unexpected={len(incompatible.unexpected_keys)}'
+        )
+
+    def _deform_inputs(
+        self, token_height: int, token_width: int, batch_size: int, device: torch.device
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+        pyramid_shapes = torch.as_tensor(
+            [(token_height * 2, token_width * 2), (token_height, token_width), (token_height // 2, token_width // 2)],
+            dtype=torch.long,
+            device=device,
+        )
+        token_shapes = torch.as_tensor([(token_height, token_width)], dtype=torch.long, device=device)
+        inject_reference = _reference_points([(token_height, token_width)], device, num_levels=3)
+        extract_reference = _reference_points(
+            [(token_height * 2, token_width * 2), (token_height, token_width), (token_height // 2, token_width // 2)],
+            device,
+            num_levels=1,
+        )
+        inject_reference = inject_reference.expand(batch_size, -1, -1, -1)
+        extract_reference = extract_reference.expand(batch_size, -1, -1, -1)
+        return (
+            inject_reference,
+            pyramid_shapes,
+            _level_start_index(pyramid_shapes),
+            extract_reference,
+            token_shapes,
+            _level_start_index(token_shapes),
+        )
+
+    def forward(self, inputs: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        input_height, input_width = inputs.shape[-2:]
+        if input_height % 32 != 0 or input_width % 32 != 0:
+            raise ValueError('The full adapter expects image dimensions divisible by 32.')
+
+        autocast_context = (
+            torch.autocast(device_type='cuda', dtype=torch.bfloat16)
+            if inputs.is_cuda
+            else contextlib.nullcontext()
+        )
+        # Keep this graph enabled even when DINOv3 is frozen: the adapter's
+        # injection path still needs gradients through the frozen ViT blocks.
+        with autocast_context:
+            c1, c2, c3, c4 = self.spm(inputs)
+            c2 = c2 + self.level_embed[0]
+            c3 = c3 + self.level_embed[1]
+            c4 = c4 + self.level_embed[2]
+            pyramid_tokens = torch.cat((c2, c3, c4), dim=1)
+
+            tokens, (token_height, token_width) = self.backbone.prepare_tokens_with_masks(inputs)
+            if self.backbone.rope_embed is not None:
+                rope_sincos = self.backbone.rope_embed(H=token_height, W=token_width)
+            else:
+                rope_sincos = None
+            (
+                inject_reference,
+                inject_shapes,
+                inject_start_index,
+                extract_reference,
+                extract_shapes,
+                extract_start_index,
+            ) = self._deform_inputs(token_height, token_width, inputs.shape[0], inputs.device)
+
+            stage_outputs: List[Tensor] = []
+            previous_end = 0
+            for interaction, stage_end in zip(self.interactions, self.interaction_indexes):
+                tokens, pyramid_tokens = interaction(
+                    tokens=tokens,
+                    pyramid_tokens=pyramid_tokens,
+                    blocks=self.backbone.blocks[previous_end:stage_end + 1],
+                    rope_sincos=rope_sincos,
+                    prefix_token_count=self.prefix_token_count,
+                    inject_reference_points=inject_reference,
+                    inject_spatial_shapes=inject_shapes,
+                    inject_level_start_index=inject_start_index,
+                    extract_reference_points=extract_reference,
+                    extract_spatial_shapes=extract_shapes,
+                    extract_level_start_index=extract_start_index,
+                    token_shape=(token_height, token_width),
+                )
+                stage_outputs.append(
+                    tokens[:, self.prefix_token_count:].transpose(1, 2).reshape(
+                        inputs.shape[0], self.embed_dim, token_height, token_width
+                    ).contiguous()
+                )
+                previous_end = stage_end + 1
+
+        c2_length = c2.shape[1]
+        c3_length = c3.shape[1]
+        c2 = pyramid_tokens[:, :c2_length]
+        c3 = pyramid_tokens[:, c2_length:c2_length + c3_length]
+        c4 = pyramid_tokens[:, c2_length + c3_length:]
+        c2 = c2.transpose(1, 2).reshape(inputs.shape[0], self.embed_dim, token_height * 2, token_width * 2)
+        c3 = c3.transpose(1, 2).reshape(inputs.shape[0], self.embed_dim, token_height, token_width)
+        c4 = c4.transpose(1, 2).reshape(inputs.shape[0], self.embed_dim, token_height // 2, token_width // 2)
+        c1 = self.up(c2) + c1
+
+        if self.add_vit_feature:
+            if len(stage_outputs) != 4:
+                raise ValueError('add_vit_feature requires exactly four interaction stages.')
+            x1, x2, x3, x4 = stage_outputs
+            c1 = c1 + F.interpolate(x1, size=c1.shape[-2:], mode='bilinear', align_corners=False)
+            c2 = c2 + F.interpolate(x2, size=c2.shape[-2:], mode='bilinear', align_corners=False)
+            c3 = c3 + F.interpolate(x3, size=c3.shape[-2:], mode='bilinear', align_corners=False)
+            c4 = c4 + F.interpolate(x4, size=c4.shape[-2:], mode='bilinear', align_corners=False)
+
+        return self.norm1(c1), self.norm2(c2), self.norm3(c3), self.norm4(c4)
