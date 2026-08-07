@@ -85,3 +85,14 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 2.完成Ningbo2m在（50 epoch, AdamW, lr=2e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=72.61（sota_mIoU=72.06），已更新到调参表中。
 3.完成Ningbo2m在（50 epoch, AdamW, lr=4e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=72.99（sota_mIoU=72.06），已更新到调参表中。
 4.完成Ningbo2m在（50 epoch, AdamW, lr=5e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=73.03（sota_mIoU=72.06），已更新到调参表中。
+
+2026年8月6日
+1.完成Ningbo2m在（50 epoch, AdamW, lr=7e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=73.03（sota_mIoU=72.06），已更新到调参表中。
+2.完成Ningbo2m在（50 epoch, AdamW, lr=8e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=73.14（sota_mIoU=72.06），已更新到调参表中。
+3.完成Ningbo2m在（50 epoch, AdamW, lr=9e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=73.03（sota_mIoU=72.06），已更新到调参表中。
+4.完成Ningbo2m在（50 epoch, AdamW, lr=1e-3, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std）配置下的测评，mIoU=73.23（sota_mIoU=72.06），已更新到调参表中。
+
+
+2026年8月7日
+1.调研的比较新的语义分割解码器（PEM，MP-Former，Upernet+sism模块），并进行代码实现。
+2.使用PEM、MP-Former、Upernet+sism解码器对Ningbo-2m进行训练，mIoU分别为72.72，73.00，72.75。
