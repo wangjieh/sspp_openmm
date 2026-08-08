@@ -13,9 +13,6 @@ Traceback (most recent call last):
            ^^^^^^^^^^^^^^^^^^^^^
   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/loops.py", line 492, in run_iter
     self.runner.call_hook(
-  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1839, in call_hook
-    getattr(hook, fn_name)(self, **kwargs)
-  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/engine/hooks/visualization_hook.py", line 114, in after_test_iter
-    self._test_index += 1
-    ^^^^^^^^^^^^^^^^
-AttributeError: 'CDVisualizationHook' object has no attribute '_test_index'
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1841, in call_hook
+    raise TypeError(f'{e} in {hook}') from None
+TypeError: expected str, bytes or os.PathLike object, not list in <opencd.engine.hooks.visualization_hook.CDVisualizationHook object at 0x7f0b34bc60c0>
