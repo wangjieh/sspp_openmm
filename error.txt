@@ -1,187 +1,142 @@
-custom_imports = dict(
-    imports=[
-        'custom_models.dinov3_backbone',
-        'custom_datasets.ningbo2m_new',
-        'custom_datasets.customPotsdam',
-    ],
-    allow_failed_imports=False,
-)
-
-_base_ = ['../mask2former_head.py']
-
-randomness = dict(deterministic=False, seed=0)
-find_unused_parameters = True
-default_scope = 'mmseg'
-model_wrapper_cfg = dict(
-    type='MMDistributedDataParallel', find_unused_parameters=True)
-
-base_learning_rate = 1e-3
-weight_decay = 0.01
-warmup_iters = 1500
-warmup_ratio = 1e-6
-max_epochs = 50
-
-DINO_CKPT = (
-    '/mnt/htzzb2/EO_test/weights_form_model_group/'
-    'stage2+stage3-zhejiang/9999.pth')
-DATA_ROOT = '/mnt/htzzb2/EO_test/datasets/Ningbo-2m_new'
-work_dir = (
-    '/mnt/htzzb2/EO_test/wj1/qh2_work_dirs/'
-    'ningbo2m_new_dinov3_m2f_multiscale_tune35_50e_512x512')
-
-img_size = 512
-num_classes = 8
-
-data_preprocessor = dict(
-    type='SegDataPreProcessor',
-    _delete_=True,
-    mean=[73.95853051, 82.62911514, 80.51181812],
-    std=[51.25007138, 41.23240959, 38.55216712],
-    bgr_to_rgb=False,
-    pad_val=0,
-    seg_pad_val=255,
-    size=(img_size, img_size),
-    test_cfg=dict(size_divisor=32))
-
-model = dict(
-    data_preprocessor=data_preprocessor,
-    backbone=dict(
-        _delete_=True,
-        type='DINOv3BackboneMmseg',
-        arch='vit_large',
-        patch_size=16,
-        interaction_indexes=[5, 11, 17, 23],
-        n_storage_tokens=4,
-        layerscale_init=1e-5,
-        mask_k_bias=True,
-        img_size=img_size,
-        checkpoint=DINO_CKPT,
-        freeze_backbone=False,
-        finetune_vit=True),
-    decode_head=dict(
-        in_channels=[1024, 1024, 1024, 1024],
-        strides=[4, 8, 16, 32],
-        num_classes=num_classes,
-        num_queries=50,
-        loss_cls=dict(
-            type='mmdet.CrossEntropyLoss',
-            use_sigmoid=False,
-            loss_weight=2.0,
-            reduction='mean',
-            class_weight=[1.0] * (num_classes + 1))),
-)
-
-# Every source tile is 512x512.  Resize to a random 512--1024 square before
-# cropping back to 512, so no undersized image or padding is introduced.
-train_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(
-        type='RandomResize',
-        scale=(1024, 1024),
-        ratio_range=(0.5, 1.0),
-        keep_ratio=True),
-    dict(type='CustomRandomRotate90', prob=0.5),
-    dict(type='RandomFlip', prob=0.5, direction='horizontal'),
-    dict(type='RandomFlip', prob=0.5, direction='vertical'),
-    dict(type='RandomCrop', crop_size=(img_size, img_size), cat_max_ratio=1.0),
-    dict(type='PackSegInputs'),
-]
-
-# Keep validation and test single-scale for a directly comparable mIoU.
-val_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(type='PackSegInputs'),
-]
-
-train_dataloader = dict(
-    _delete_=True,
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=True),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='train',
-        pipeline=train_pipeline))
-
-val_dataloader = dict(
-    _delete_=True,
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=False),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='val',
-        pipeline=val_pipeline))
-
-test_dataloader = dict(
-    _delete_=True,
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=False),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='val',
-        pipeline=val_pipeline))
-
-val_evaluator = dict(
-    type='IoUMetric', iou_metrics=['mIoU', 'mFscore'], _delete_=True)
-test_evaluator = val_evaluator
-
-optim_wrapper = dict(
-    type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_learning_rate, weight_decay=weight_decay),
-    paramwise_cfg=dict(
-        custom_keys=dict(backbone=dict(lr_mult=0.1)), norm_decay_mult=0.0),
-    clip_grad=dict(max_norm=1, norm_type=2))
-
-param_scheduler = [
-    dict(
-        type='LinearLR',
-        start_factor=warmup_ratio,
-        by_epoch=False,
-        begin=0,
-        end=warmup_iters),
-    dict(
-        type='PolyLR',
-        eta_min=0.0,
-        power=1.0,
-        begin=0,
-        end=max_epochs,
-        by_epoch=True,
-        convert_to_iter_based=True),
-]
-
-train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-val_cfg = dict(type='ValLoop')
-test_cfg = dict(type='TestLoop')
-
-custom_hooks = []
-default_hooks = dict(
-    timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=True),
-    param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(
-        type='CheckpointHook',
-        by_epoch=True,
-        interval=1,
-        save_best='mIoU',
-        rule='greater',
-        max_keep_ckpts=3),
-    sampler_seed=dict(type='DistSamplerSeedHook'),
-    visualization=dict(type='SegVisualizationHook'))
-
-env_cfg = dict(
-    cudnn_benchmark=True,
-    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
-    dist_cfg=dict(backend='nccl'))
-
-vis_backends = [dict(type='LocalVisBackend')]
-visualizer = dict(
-    type='SegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
-log_processor = dict(by_epoch=True)
-log_level = 'INFO'
-load_from = None
-resume = False
+W0808 11:27:59.548000 2641382 site-packages/torch/distributed/run.py:774] 
+W0808 11:27:59.548000 2641382 site-packages/torch/distributed/run.py:774] *****************************************
+W0808 11:27:59.548000 2641382 site-packages/torch/distributed/run.py:774] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0808 11:27:59.548000 2641382 site-packages/torch/distributed/run.py:774] *****************************************
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 123, in <module>
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 123, in <module>
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 123, in <module>
+    main()
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 86, in main
+    main()
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 86, in main
+    main()
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 86, in main
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 123, in <module>
+    cfg = Config.fromfile(args.config)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 466, in fromfile
+    cfg = Config.fromfile(args.config)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    cfg = Config.fromfile(args.config)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 466, in fromfile
+     main() 
+        ^^  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/./mmseg_tools/test.py", line 86, in main
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 466, in fromfile
+    cfg = Config.fromfile(args.config)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/config/config.py", line 466, in fromfile
+    import_modules_from_strings(**cfg_dict['custom_imports'])    
+import_modules_from_strings(**cfg_dict['custom_imports'])
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 77, in import_modules_from_strings
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 77, in import_modules_from_strings
+    import_modules_from_strings(**cfg_dict['custom_imports'])
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 77, in import_modules_from_strings
+    import_modules_from_strings(**cfg_dict['custom_imports'])
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/utils/misc.py", line 77, in import_modules_from_strings
+    imported_tmp = import_module(imp)
+                   ^    ^imported_tmp = import_module(imp)^
+^^^^^^^ ^ ^ ^ ^     ^ imported_tmp = import_module(imp)^ 
+^ ^ 
+     File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/importlib/__init__.py", line 90, in import_module
+             ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^^^^^^^^^^
+^^  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/importlib/__init__.py", line 90, in import_module
+^    ^imported_tmp = import_module(imp)^
+^^^^^ ^ ^ ^ 
+     File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/importlib/__init__.py", line 90, in import_module
+            ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^    ^return _bootstrap._gcd_import(name[level:], package, level)^
+^    ^return _bootstrap._gcd_import(name[level:], package, level)^
+^^^ ^     ^ return _bootstrap._gcd_import(name[level:], package, level)^ 
+^  ^  ^   ^  ^ ^  ^   ^^  ^^ ^ ^ ^  ^^^^ ^ ^^^^ ^^^ ^^^ ^^^^ ^^^ ^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+^^^^^^^^  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+^^^^^^^^  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+^^^^^^^  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+^^^^  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+^^^^^^  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+^^^^^^^  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_models/dinov3_backbone.py", line 30, in <module>
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+^^^^  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+^^
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+^^  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+^^  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+^^  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+^  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_models/dinov3_backbone.py", line 30, in <module>
+^^  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+^
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_models/dinov3_backbone.py", line 30, in <module>
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/custom_models/dinov3_backbone.py", line 30, in <module>
+    from mmseg.registry import MODELS
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/__init__.py", line 58, in <module>
+    from mmseg.registry import MODELS
+  File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/__init__.py", line 58, in <module>
+    mmcv_version = digit_version(mmcv.__version__)
+    from mmseg.registry import MODELS
+          File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/__init__.py", line 58, in <module>
+       from mmseg.registry import MODELS 
+              File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/__init__.py", line 58, in <module>
+         ^^    ^mmcv_version = digit_version(mmcv.__version__)^
+^^^^ ^ ^ ^ ^ ^ ^ ^ ^ 
+     AttributeError  :  module 'mmcv' has no attribute '__version__'     
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'mmcv' has no attribute '__version__'
+    mmcv_version = digit_version(mmcv.__version__)
+                                 ^^^^    ^mmcv_version = digit_version(mmcv.__version__)^
+^^^^^^^^^^ 
+  AttributeError :  module 'mmcv' has no attribute '__version__'   
+                         ^^^^^^^^^^^^^^^^
+AttributeError: module 'mmcv' has no attribute '__version__'
+W0808 11:28:06.679000 2641382 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 2641736 closing signal SIGTERM
+W0808 11:28:06.681000 2641382 site-packages/torch/distributed/elastic/multiprocessing/api.py:900] Sending process 2641737 closing signal SIGTERM
+E0808 11:28:06.730000 2641382 site-packages/torch/distributed/elastic/multiprocessing/api.py:874] failed (exitcode: 1) local_rank: 0 (pid: 2641735) of binary: /mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/python
+Traceback (most recent call last):
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/bin/torchrun", line 6, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 357, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 901, in main
+    run(args)
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/run.py", line 892, in run
+    elastic_launch(
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 143, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 277, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+./mmseg_tools/test.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-08-08_11:28:06
+  host      : ji-jupyter-159895604225926208-master-0.ji-jupyter-159895604225926208.nhss-job.svc.cluster.local
+  rank      : 3 (local_rank: 3)
+  exitcode  : 1 (pid: 2641738)
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
