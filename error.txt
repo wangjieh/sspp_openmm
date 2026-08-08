@@ -1,3 +1,251 @@
+# Copyright (c) Open-CD. All rights reserved.
+import os
+import os.path as osp
+import warnings
+from collections.abc import Sequence as SequenceABC
+from typing import Optional, Sequence
+
+import mmcv
+import mmengine.fileio as fileio
+import numpy as np
+from mmengine.runner import Runner
+
+from mmseg.engine import SegVisualizationHook
+from mmseg.structures import SegDataSample
+from opencd.registry import HOOKS
+from opencd.visualization import CDLocalVisualizer
+
+
+@HOOKS.register_module(force=True)
+class CDVisualizationHook_Jie(SegVisualizationHook):
+    """Change Detection Visualization Hook for Jie.
+
+    This version only modifies ``visualization_hook_Jie.py``. It does not
+    require changing ``tools/test.py`` and does not add new command-line args.
+
+    Fixes:
+    1. ``output.img_path`` may be nested in change detection:
+       - "A/xxx.png"
+       - ["A/xxx.png", "B/xxx.png"]
+       - [["A/xxx.png", "B/xxx.png"]]
+       This hook flattens it before calling ``osp.basename`` or ``fileio.get``.
+
+    2. Newer mmseg ``SegVisualizationHook.after_test_iter`` uses
+       ``self._test_index`` and has its own semantic-segmentation visualization
+       logic. If this subclass only implements ``_after_iter``, test-time
+       execution may still enter the mmseg parent ``after_test_iter``.
+       Therefore this class explicitly overrides both ``after_val_iter`` and
+       ``after_test_iter`` and routes them to the CD-specific ``_after_iter``.
+    """
+
+    def __init__(self,
+                 img_shape: tuple = None,
+                 draw_on_from_to_img: bool = False,
+                 draw: bool = False,
+                 interval: int = 50,
+                 show: bool = False,
+                 wait_time: float = 0.,
+                 backend_args: Optional[dict] = None):
+        self.img_shape = img_shape
+        self.draw_on_from_to_img = draw_on_from_to_img
+        if self.draw_on_from_to_img:
+            warnings.warn('`draw_on_from_to_img` works only in '
+                          'semantic change detection.')
+
+        self._visualizer: CDLocalVisualizer = \
+            CDLocalVisualizer.get_current_instance()
+
+        self.interval = interval
+        self.show = show
+        if self.show:
+            # No need to think about vis backends.
+            self._visualizer._vis_backends = {}
+            warnings.warn('The show is True, it means that only '
+                          'the prediction results are visualized '
+                          'without storing data, so vis_backends '
+                          'needs to be excluded.')
+
+        self.wait_time = wait_time
+        self.backend_args = backend_args.copy() if backend_args else None
+        self.draw = draw
+
+        # mmseg's parent SegVisualizationHook uses this in after_test_iter.
+        # We override after_test_iter below, but keeping this variable makes
+        # the hook robust to minor version differences and is also useful as
+        # the visualization step during testing.
+        self._test_index = 0
+
+        if not self.draw:
+            warnings.warn('The draw is False, it means that the '
+                          'hook for visualization will not take '
+                          'effect. The results will NOT be '
+                          'visualized or stored.')
+
+    @staticmethod
+    def _is_path_like(obj) -> bool:
+        return isinstance(obj, (str, bytes, os.PathLike))
+
+    @classmethod
+    def _flatten_img_paths(cls, img_paths):
+        """Flatten image path containers into ``list[str]``.
+
+        Supported examples:
+            "A/001.png"
+            ["A/001.png", "B/001.png"]
+            [["A/001.png", "B/001.png"]]
+            np.array(["A/001.png", "B/001.png"], dtype=object)
+        """
+        if img_paths is None:
+            return []
+
+        if cls._is_path_like(img_paths):
+            return [os.fspath(img_paths)]
+
+        if isinstance(img_paths, np.ndarray):
+            img_paths = img_paths.tolist()
+
+        if isinstance(img_paths, SequenceABC):
+            flattened = []
+            for item in img_paths:
+                flattened.extend(cls._flatten_img_paths(item))
+            return flattened
+
+        raise TypeError(
+            '`img_path` must be a path-like object or a sequence of '
+            f'path-like objects, but got {type(img_paths)}: {repr(img_paths)}'
+        )
+
+    @staticmethod
+    def _safe_window_name(img_path: str) -> str:
+        img_path = os.fspath(img_path)
+        stem = osp.splitext(osp.basename(img_path))[0]
+        return stem if stem else 'vis_result'
+
+    def _read_rgb(self, img_path: str):
+        img_path = os.fspath(img_path)
+        img_bytes = fileio.get(img_path, backend_args=self.backend_args)
+        return mmcv.imfrombytes(img_bytes, channel_order='rgb')
+
+    def after_val_iter(self,
+                       runner: Runner,
+                       batch_idx: int,
+                       data_batch: dict = None,
+                       outputs: Optional[Sequence[SegDataSample]] = None) -> None:
+        """Override mmseg parent hook and use CD visualization logic."""
+        self._after_iter(
+            runner=runner,
+            batch_idx=batch_idx,
+            data_batch=data_batch,
+            outputs=outputs,
+            mode='val',
+        )
+
+    def after_test_iter(self,
+                        runner: Runner,
+                        batch_idx: int,
+                        data_batch: dict = None,
+                        outputs: Optional[Sequence[SegDataSample]] = None) -> None:
+        """Override mmseg parent hook and use CD visualization logic.
+
+        This is the key fix for:
+            AttributeError: 'CDVisualizationHook_Jie' object has no attribute
+            '_test_index'
+
+        More importantly, it prevents execution from falling back to mmseg's
+        semantic-segmentation visualization path, which cannot handle nested
+        change-detection ``img_path``.
+        """
+        self._after_iter(
+            runner=runner,
+            batch_idx=batch_idx,
+            data_batch=data_batch,
+            outputs=outputs,
+            mode='test',
+        )
+
+    def _after_iter(self,
+                    runner: Runner,
+                    batch_idx: int,
+                    data_batch: dict,
+                    outputs: Optional[Sequence[SegDataSample]],
+                    mode: str = 'val') -> None:
+        """Run visualization after every ``self.interval`` val/test iter."""
+        if self.draw is False or mode == 'train':
+            return
+
+        if outputs is None:
+            return
+
+        if not self.every_n_inner_iters(batch_idx, self.interval):
+            return
+
+        for output in outputs:
+            # Key fix: output.img_path can be a nested list in CD tasks.
+            img_paths = self._flatten_img_paths(getattr(output, 'img_path', None))
+
+            if len(img_paths) == 0:
+                warnings.warn('Skip visualization because `output.img_path` '
+                              'is empty.')
+                continue
+
+            # Use first temporal image for naming / image-shape lookup.
+            img_path = img_paths[0]
+            window_name = self._safe_window_name(img_path)
+
+            img_from_to = []
+
+            if self.img_shape is not None:
+                assert len(self.img_shape) == 3, \
+                    '`img_shape` should be (H, W, C)'
+                img_shape = self.img_shape
+            else:
+                img = self._read_rgb(img_path)
+                img_shape = img.shape
+
+            if self.draw_on_from_to_img:
+                if len(img_paths) < 2:
+                    warnings.warn(
+                        '`draw_on_from_to_img=True` requires two image paths '
+                        f'but got {len(img_paths)}: {img_paths}. '
+                        'Will draw binary result only.'
+                    )
+                else:
+                    for _img_path in img_paths[:2]:
+                        img_from_to.append(self._read_rgb(_img_path))
+
+            # CDLocalVisBackend asserts dtype == np.uint8.
+            img = np.zeros(img_shape, dtype=np.uint8)
+
+            # Do not pass out_file and do not modify test.py.
+            # In your tools/test.py, --show-dir is already handled by:
+            #   cfg.visualizer['save_dir'] = args.show_dir
+            # Then CDLocalVisualizer/CDLocalVisBackend saves the results.
+            step = self._test_index if mode == 'test' else runner.iter
+
+            self._visualizer.add_datasample(
+                window_name,
+                img,
+                img_from_to,
+                data_sample=output,
+                show=self.show,
+                wait_time=self.wait_time,
+                step=step,
+                draw_gt=False)
+
+            if mode == 'test':
+                self._test_index += 1
+
+
+
+
+
+
+
+
+
+
+
+
 Traceback (most recent call last):
   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/opencd-moxingzu/tools/test.py", line 114, in <module>
     main()
@@ -15,4 +263,4 @@ Traceback (most recent call last):
     self.runner.call_hook(
   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/abc/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1841, in call_hook
     raise TypeError(f'{e} in {hook}') from None
-TypeError: expected str, bytes or os.PathLike object, not list in <opencd.engine.hooks.visualization_hook.CDVisualizationHook object at 0x7f0b34bc60c0>
+TypeError: LocalVisBackend.add_image() takes from 3 to 4 positional arguments but 6 were given in <opencd.engine.hooks.visualization_hook_Jie.CDVisualizationHook_Jie object at 0x7f394cc31a00>
