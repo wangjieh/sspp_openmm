@@ -96,3 +96,9 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 2026年8月7日
 1.调研的比较新的语义分割解码器（PEM，MP-Former，Upernet+sism模块），并进行代码实现。
 2.使用PEM、MP-Former、Upernet+sism解码器对Ningbo-2m进行训练，mIoU分别为72.72，73.00，72.75。
+
+2026年8月8日
+1.修改模型加载代码，自适应适配配置文件中的patch_size。
+2.在原有sota配置上，完成Ningbo2m数据集在patch_size=8的训练测评，mIoU=73.37。（相比之前，提高0.13，但与swin的73.69仍有差距。）
+3.完成CAU_FLOOD与Ningbo2m数据在qianhe2模型上的推理，并挑选效果好的进行整理，路径：/mnt/htzzb2/EO_test/wj1/qh2_work_dirs下的两个word文档。
+4.雷达图绘制。
