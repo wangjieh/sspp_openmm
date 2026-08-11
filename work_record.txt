@@ -102,3 +102,8 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 2.在原有sota配置上，完成Ningbo2m数据集在patch_size=8的训练测评，mIoU=73.37。（相比之前，提高0.13，但与swin的73.69仍有差距。）
 3.完成CAU_FLOOD与Ningbo2m数据在qianhe2模型上的推理，并挑选效果好的进行整理，路径：/mnt/htzzb2/EO_test/wj1/qh2_work_dirs下的两个word文档。
 4.雷达图绘制。
+
+2026年8月11日
+1.完成Ningbo2m数据集在（50 epoch, AdamW, lr=1e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std；patch_size=4）配置下的训练，mIoU=71.25。
+2.完成Ningbo2m数据集在（50 epoch, AdamW, lr=1e-3, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std；patch_size=8；去除原本的randomRotate增强）配置下的训练，mIoU=73.41（当前qianhe2系列最高，swin-huge最高为73.69）。
+3.借鉴之前训练swin-huge的思路，编写（qianhe2骨干+fpn+upernet）训练配置文件（共设置了6组不同的骨干与解码器学习率组合），训练已拉起，明天出结果。
