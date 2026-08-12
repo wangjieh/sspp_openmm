@@ -1,52 +1,53 @@
 Traceback (most recent call last):
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank7]:     main()
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 93, in main
-[rank7]:     runner = Runner.from_cfg(cfg)
-[rank7]:              ^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 462, in from_cfg
-[rank7]:     runner = cls(
-[rank7]:              ^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 429, in __init__
-[rank7]:     self.model = self.build_model(model)
-[rank7]:                  ^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 836, in build_model
-[rank7]:     model = MODELS.build(model)
-[rank7]:             ^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
-[rank7]:     return build_from_cfg(cfg, registry, default_args)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank7]:     obj = obj_cls(**args)  # type: ignore
-[rank7]:           ^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/encoder_decoder.py", line 92, in __init__
-[rank7]:     self._init_decode_head(decode_head)
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/encoder_decoder.py", line 102, in _init_decode_head
-[rank7]:     self.decode_head = MODELS.build(decode_head)
-[rank7]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
-[rank7]:     return build_from_cfg(cfg, registry, default_args)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
-[rank7]:     obj = obj_cls(**args)  # type: ignore
-[rank7]:           ^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/decode_heads/mask2former_head.py", line 42, in __init__
-[rank7]:     super().__init__(**kwargs)
-[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmdetection/mmdet/models/dense_heads/mask2former_head.py", line 113, in __init__
-[rank7]:     self.pixel_decoder = MODELS.build(pixel_decoder_)
-[rank7]:                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
-[rank7]:     return build_from_cfg(cfg, registry, default_args)
-[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
-[rank7]:     raise KeyError(
-[rank7]: KeyError: 'HyPiPixelDecoder is not in the mmseg::model registry. Please check whether the value of `HyPiPixelDecoder` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
+[rank3]:     main()
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 93, in main
+[rank3]:     runner = Runner.from_cfg(cfg)
+[rank3]:              ^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 462, in from_cfg
+[rank3]:     runner = cls(
+[rank3]:              ^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 429, in __init__
+[rank3]:     self.model = self.build_model(model)
+[rank3]:                  ^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 836, in build_model
+[rank3]:     model = MODELS.build(model)
+[rank3]:             ^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
+[rank3]:     return build_from_cfg(cfg, registry, default_args)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+[rank3]:     obj = obj_cls(**args)  # type: ignore
+[rank3]:           ^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/encoder_decoder.py", line 92, in __init__
+[rank3]:     self._init_decode_head(decode_head)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/encoder_decoder.py", line 102, in _init_decode_head
+[rank3]:     self.decode_head = MODELS.build(decode_head)
+[rank3]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
+[rank3]:     return build_from_cfg(cfg, registry, default_args)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+[rank3]:     obj = obj_cls(**args)  # type: ignore
+[rank3]:           ^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/decode_heads/mask2former_head.py", line 42, in __init__
+[rank3]:     super().__init__(**kwargs)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmdetection/mmdet/models/dense_heads/mask2former_head.py", line 113, in __init__
+[rank3]:     self.pixel_decoder = MODELS.build(pixel_decoder_)
+[rank3]:                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
+[rank3]:     return build_from_cfg(cfg, registry, default_args)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+[rank3]:     obj = obj_cls(**args)  # type: ignore
+[rank3]:           ^^^^^^^^^^^^^^^
+[rank3]: TypeError: HyPiPixelDecoder.__init__() missing 1 required positional argument: 'strides
