@@ -1,15 +1,46 @@
-tta_model = dict(type='SegTTAModel')
-
-tta_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(
-        type='TestTimeAug',
-        transforms=[
-            [
-                dict(type='RandomFlip', prob=0.0, direction='horizontal'),
-                dict(type='RandomFlip', prob=1.0, direction='horizontal'),
-            ],
-            [dict(type='PackSegInputs')],
-        ],
-    ),
-]
+Traceback (most recent call last):
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 123, in <module>
+[rank0]:     main()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 119, in main
+[rank0]:     runner.test()
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1823, in test
+[rank0]:     metrics = self.test_loop.run()  # type: ignore
+[rank0]:               ^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 463, in run
+[rank0]:     self.run_iter(idx, data_batch)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 491, in run_iter
+[rank0]:     self.evaluator.process(data_samples=outputs, data_batch=data_batch)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/evaluator/evaluator.py", line 60, in process
+[rank0]:     metric.process(data_batch, _data_samples)
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 85, in process
+[rank0]:     self.intersect_and_union(pred_label, label, num_classes,
+[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 186, in intersect_and_union
+[rank0]:     pred_label = pred_label[mask]
+[rank0]:                  ~~~~~~~~~~^^^^^^
+[rank0]: IndexError: The shape of the mask [384, 384] at index 0 does not match the shape of the indexed tensor [512, 512] at index 0
+[rank4]: Traceback (most recent call last):
+[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 123, in <module>
+[rank4]:     main()
+[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 119, in main
+[rank4]:     runner.test()
+[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1823, in test
+[rank4]:     metrics = self.test_loop.run()  # type: ignore
+[rank4]:               ^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 463, in run
+[rank4]:     self.run_iter(idx, data_batch)
+[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+[rank4]:     return func(*args, **kwargs)
+[rank4]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 491, in run_iter
+[rank4]:     self.evaluator.process(data_samples=outputs, data_batch=data_batch)
+[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/evaluator/evaluator.py", line 60, in process
+[rank4]:     metric.process(data_batch, _data_samples)
+[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 85, in process
+[rank4]:     self.intersect_and_union(pred_label, label, num_classes,
+[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 186, in intersect_and_union
+[rank4]:     pred_label = pred_label[mask]
+[rank4]:                  ~~~~~~~~~~^^^^^^
+[rank4]: IndexError: The shape of the mask [384, 384] at index 0 does not match the shape of the indexed tensor [512, 512] at index 0
