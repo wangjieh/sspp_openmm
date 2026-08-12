@@ -1,222 +1,24 @@
-custom_imports = dict(
-    imports=[
-        'custom_models.dinov3_backbone',
-        'custom_datasets.ningbo2m_new',
-        'custom_datasets.customPotsdam',
-        'custom_models.dinov3_flexible_patch_backbone',
-        'custom_models.hypi_pixel_decoder',
-    ],
-    allow_failed_imports=False,
-)
-
-_base_ = ['../mask2former_head.py']
-
-randomness = dict(deterministic=False, seed=0)
-find_unused_parameters = True
-default_scope = 'mmseg'
-model_wrapper_cfg = dict(type='MMDistributedDataParallel', find_unused_parameters=True)
-base_learning_rate = 1e-3
-weight_decay = 0.01
-warmup_iters = 1500
-warmup_ratio = 1e-6
-max_epochs = 50
-
-# Paths
-DINO_CKPT = '/mnt/htzzb2/EO_test/weights_form_model_group/stage2+stage3-zhejiang/9999.pth'
-DATA_ROOT = '/mnt/htzzb2/EO_test/datasets/Ningbo-2m_new'
-work_dir = ('/mnt/htzzb2/EO_test/wj1/qh2_work_dirs/'
-            'ningbo2m_new_dinov3_m2f_tune50_50e_512x512')
-
-img_size = 512
-num_classes = 8
-
-data_preprocessor = dict(
-    type='SegDataPreProcessor',
-    _delete_=True,
-    mean=[73.95853051, 82.62911514, 80.51181812],
-    std=[51.25007138, 41.23240959, 38.55216712],
-    bgr_to_rgb=False,
-    pad_val=0,
-    seg_pad_val=255,
-    size=(img_size, img_size),
-    test_cfg=dict(size_divisor=32),
-)
-
-model = dict(
-    data_preprocessor=data_preprocessor,
-    backbone=dict(
-        _delete_=True,
-        type='DINOv3BackboneFlexiblePatch',
-        arch='vit_large',
-        patch_size=8,
-        interaction_indexes=[5, 11, 17, 23],
-        n_storage_tokens=4,
-        layerscale_init=1e-5,
-        mask_k_bias=True,
-        img_size=img_size,
-        checkpoint=DINO_CKPT,
-        freeze_backbone=False,
-        finetune_vit=True,
-    ),
-    decode_head=dict(
-        in_channels=[1024, 1024, 1024, 1024],
-        strides=[4, 8, 16, 32],
-        num_classes=num_classes,
-        num_queries=50,
-        pixel_decoder=dict(
-            type='HyPiPixelDecoder',
-            encoder=dict(num_layers=3),
-            attn_num_layers=3,
-            hybrid_num_layers=3,
-            csp_num_blocks=3,
-            csp_expand_ratio=0.5,
-        ),
-        loss_cls=dict(
-            type='mmdet.CrossEntropyLoss',
-            use_sigmoid=False,
-            loss_weight=2.0,
-            reduction='mean',
-            class_weight=[1.0] * (num_classes + 1),
-        ),
-    ),
-)
-
-train_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(type='RandomFlip', prob=0.5, direction='horizontal'),
-    dict(type='RandomFlip', prob=0.5, direction='vertical'),
-    dict(type='RandomCrop', crop_size=(img_size, img_size), cat_max_ratio=1.0),
-    dict(type='PackSegInputs'),
-]
-val_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(type='PackSegInputs'),
-]
-
-train_dataloader = dict(
-    _delete_=True,
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=True),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='train',
-        pipeline=train_pipeline,
-    ),
-)
-val_dataloader = dict(
-    _delete_=True,
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=False),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='val',
-        pipeline=val_pipeline,
-    ),
-)
-test_dataloader = dict(
-    _delete_=True,
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=False),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='val',
-        pipeline=val_pipeline,
-    ),
-)
-
-val_evaluator = dict(type='IoUMetric', iou_metrics=['mIoU', 'mFscore'], _delete_=True)
-test_evaluator = val_evaluator
-
-optim_wrapper = dict(
-    type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_learning_rate, weight_decay=weight_decay),
-    paramwise_cfg=dict(
-        custom_keys=dict(backbone=dict(lr_mult=0.1)),
-        norm_decay_mult=0.0,
-    ),
-    clip_grad=dict(max_norm=1, norm_type=2),
-)
-param_scheduler = [
-    dict(
-        type='LinearLR',
-        start_factor=warmup_ratio,
-        by_epoch=False,
-        begin=0,
-        end=warmup_iters,
-    ),
-    dict(
-        type='PolyLR',
-        eta_min=0.0,
-        power=1.0,
-        begin=0,
-        end=max_epochs,
-        by_epoch=True,
-        convert_to_iter_based=True,
-    ),
-]
-
-train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-val_cfg = dict(type='ValLoop')
-test_cfg = dict(type='TestLoop')
-
-custom_hooks = []
-
-default_hooks = dict(
-    timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=True),
-    param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(
-        type='CheckpointHook',
-        by_epoch=True,
-        interval=1,
-        save_best='mIoU',
-        rule='greater',
-        max_keep_ckpts=3,
-    ),
-    sampler_seed=dict(type='DistSamplerSeedHook'),
-    visualization=dict(type='SegVisualizationHook'),
-)
-
-env_cfg = dict(
-    cudnn_benchmark=True,
-    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
-    dist_cfg=dict(backend='nccl'),
-)
-vis_backends = [dict(type='LocalVisBackend')]
-visualizer = dict(type='SegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
-log_processor = dict(by_epoch=True)
-log_level = 'INFO'
-load_from = None
-resume = False
-
-
-# 测试时增强，推理脚本执行时，额外增加 "--tta" 参数
-tta_model = dict(type='SegTTAModel')
-# tta_scales = [0.75, 1.0]  # 73.46
-# tta_scales = [1.0, 1.25]  # 
-# tta_scales = [0.75, 1.0, 1.25]
-# 增加多尺度会降miou
-tta_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(
-        type='TestTimeAug',
-        transforms=[
-            #[
-            #    dict(type='Ningbo2mResizeImageOnly', scale_factor=scale, keep_ratio=True)
-            #    for scale in tta_scales
-            #],
-            [
-                dict(type='RandomFlip', prob=0.0, direction='horizontal'),  # 73.46
-                dict(type='RandomFlip', prob=1.0, direction='horizontal'),  # 73.66
-                dict(type='RandomFlip', prob=1.0, direction='vertical'),  # 73.83
-            ],
-            [dict(type='PackSegInputs')],
-        ],
-    ),
-]
+Traceback (most recent call last):
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
+[rank3]:     main()
+[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 93, in main
+[rank3]:     runner = Runner.from_cfg(cfg)
+[rank3]:              ^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 462, in from_cfg
+[rank3]:     runner = cls(
+[rank3]:              ^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 442, in __init__
+[rank3]:     self.register_hooks(default_hooks, custom_hooks)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1995, in register_hooks
+[rank3]:     self.register_custom_hooks(custom_hooks)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1976, in register_custom_hooks
+[rank3]:     self.register_hook(hook)
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1877, in register_hook
+[rank3]:     hook_obj = HOOKS.build(hook)
+[rank3]:                ^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
+[rank3]:     raise KeyError(
+[rank3]: KeyError: 'EMAHOOK is not in the mmseg::hook registry. Please check whether the value of `EMAHOOK` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'
