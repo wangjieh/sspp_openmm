@@ -1,197 +1,52 @@
-# ningbo2m_new_dinov3_fpn_upernet_tune43_50e_512x512.py
-
-custom_imports = dict(
-    imports=[
-        "custom_models.dinov3_backbone",
-        'custom_datasets.ningbo2m_new',
-        'custom_datasets.customPotsdam',
-        "custom_models.dinov3_flexible_patch_backbone",
-    ],
-    allow_failed_imports=False,
-)
-
-randomness = dict(deterministic=False, seed=0)
-find_unused_parameters = True
-default_scope = 'mmseg'
-model_wrapper_cfg = dict(type='MMDistributedDataParallel', find_unused_parameters=True)
-base_learning_rate = 1e-3
-weight_decay = 0.01
-warmup_iters = 1500
-warmup_ratio = 1e-6
-max_epochs = 50
-
-# Paths
-DINO_CKPT = "/mnt/htzzb2/EO_test/weights_form_model_group/stage2+stage3-zhejiang/9999.pth"
-DATA_ROOT = '/mnt/htzzb2/EO_test/datasets/Ningbo-2m_new'
-work_dir = ('/mnt/htzzb2/EO_test/wj1/qh2_work_dirs/'
-            'ningbo2m_new_dinov3_fpn_upernet_tune43_50e_512x512')
-
-img_size = 512
-num_classes = 8
-ignore_index = 255
-norm_cfg = dict(type='SyncBN', requires_grad=True)
-
-data_preprocessor = dict(
-    type='SegDataPreProcessor',
-    mean=[73.95853051, 82.62911514, 80.51181812],
-    std=[51.25007138, 41.23240959, 38.55216712],
-    bgr_to_rgb=False,
-    pad_val=0,
-    seg_pad_val=ignore_index,
-    size=(img_size, img_size),
-    test_cfg=dict(size_divisor=32),
-)
-
-model = dict(
-    type='EncoderDecoder',
-    data_preprocessor=data_preprocessor,
-    backbone=dict(
-        type='DINOv3BackboneFlexiblePatch',
-        arch='vit_large',
-        patch_size=8,
-        interaction_indexes=[5, 11, 17, 23],
-        n_storage_tokens=4,
-        layerscale_init=1e-5,
-        mask_k_bias=True,
-        img_size=img_size,
-        checkpoint=DINO_CKPT,
-        freeze_backbone=False,
-        finetune_vit=True,
-    ),
-    neck=dict(
-        type='FPN',
-        in_channels=[1024, 1024, 1024, 1024],
-        out_channels=256,
-        num_outs=4,
-        norm_cfg=norm_cfg,
-    ),
-    decode_head=dict(
-        type='UPerHead',
-        in_channels=[256, 256, 256, 256],
-        in_index=[0, 1, 2, 3],
-        channels=512,
-        pool_scales=(1, 2, 3, 6),
-        dropout_ratio=0.1,
-        num_classes=num_classes,
-        norm_cfg=norm_cfg,
-        act_cfg=dict(type='ReLU', inplace=True),
-        align_corners=False,
-        ignore_index=ignore_index,
-        loss_decode=dict(
-            type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0),
-    ),
-    train_cfg=dict(),
-    test_cfg=dict(mode='whole'),
-)
-
-train_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(type='CustomRandomRotate90', prob=0.5),
-    dict(type='RandomFlip', prob=0.5, direction='horizontal'),
-    dict(type='RandomFlip', prob=0.5, direction='vertical'),
-    dict(type='RandomCrop', crop_size=(img_size, img_size), cat_max_ratio=1.0),
-    dict(type='PackSegInputs'),
-]
-val_pipeline = [
-    dict(type='LoadNingbo2mRaster', img_size=img_size),
-    dict(type='PackSegInputs'),
-]
-
-train_dataloader = dict(
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=True),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='train',
-        pipeline=train_pipeline,
-    ),
-)
-val_dataloader = dict(
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=False),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='val',
-        pipeline=val_pipeline,
-    ),
-)
-test_dataloader = dict(
-    batch_size=8,
-    num_workers=4,
-    sampler=dict(type='DefaultSampler', shuffle=False),
-    dataset=dict(
-        type='Ningbo2mNewDataset',
-        data_root=DATA_ROOT,
-        split='val',
-        pipeline=val_pipeline,
-    ),
-)
-
-val_evaluator = dict(type='IoUMetric', iou_metrics=['mIoU', 'mFscore'])
-test_evaluator = val_evaluator
-
-optim_wrapper = dict(
-    type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_learning_rate, weight_decay=weight_decay),
-    paramwise_cfg=dict(
-        custom_keys=dict(backbone=dict(lr_mult=0.1)),
-        norm_decay_mult=0.0,
-    ),
-    clip_grad=dict(max_norm=1, norm_type=2),
-)
-param_scheduler = [
-    dict(
-        type='LinearLR',
-        start_factor=warmup_ratio,
-        by_epoch=False,
-        begin=0,
-        end=warmup_iters,
-    ),
-    dict(
-        type='PolyLR',
-        eta_min=0.0,
-        power=1.0,
-        begin=0,
-        end=max_epochs,
-        by_epoch=True,
-        convert_to_iter_based=True,
-    ),
-]
-
-train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
-val_cfg = dict(type='ValLoop')
-test_cfg = dict(type='TestLoop')
-
-custom_hooks = []
-
-default_hooks = dict(
-    timer=dict(type='IterTimerHook'),
-    logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=True),
-    param_scheduler=dict(type='ParamSchedulerHook'),
-    checkpoint=dict(
-        type='CheckpointHook',
-        by_epoch=True,
-        interval=1,
-        save_best='mIoU',
-        rule='greater',
-        max_keep_ckpts=3,
-    ),
-    sampler_seed=dict(type='DistSamplerSeedHook'),
-    visualization=dict(type='SegVisualizationHook'),
-)
-
-env_cfg = dict(
-    cudnn_benchmark=True,
-    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
-    dist_cfg=dict(backend='nccl'),
-)
-vis_backends = [dict(type='LocalVisBackend')]
-visualizer = dict(type='SegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
-log_processor = dict(by_epoch=True)
-log_level = 'INFO'
-load_from = None
-resume = False
+Traceback (most recent call last):
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
+[rank7]:     main()
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 93, in main
+[rank7]:     runner = Runner.from_cfg(cfg)
+[rank7]:              ^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 462, in from_cfg
+[rank7]:     runner = cls(
+[rank7]:              ^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 429, in __init__
+[rank7]:     self.model = self.build_model(model)
+[rank7]:                  ^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 836, in build_model
+[rank7]:     model = MODELS.build(model)
+[rank7]:             ^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
+[rank7]:     return build_from_cfg(cfg, registry, default_args)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+[rank7]:     obj = obj_cls(**args)  # type: ignore
+[rank7]:           ^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/encoder_decoder.py", line 92, in __init__
+[rank7]:     self._init_decode_head(decode_head)
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/segmentors/encoder_decoder.py", line 102, in _init_decode_head
+[rank7]:     self.decode_head = MODELS.build(decode_head)
+[rank7]:                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
+[rank7]:     return build_from_cfg(cfg, registry, default_args)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 121, in build_from_cfg
+[rank7]:     obj = obj_cls(**args)  # type: ignore
+[rank7]:           ^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/models/decode_heads/mask2former_head.py", line 42, in __init__
+[rank7]:     super().__init__(**kwargs)
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmdetection/mmdet/models/dense_heads/mask2former_head.py", line 113, in __init__
+[rank7]:     self.pixel_decoder = MODELS.build(pixel_decoder_)
+[rank7]:                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
+[rank7]:     return self.build_func(cfg, *args, **kwargs, registry=self)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 232, in build_model_from_cfg
+[rank7]:     return build_from_cfg(cfg, registry, default_args)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
+[rank7]:     raise KeyError(
+[rank7]: KeyError: 'HyPiPixelDecoder is not in the mmseg::model registry. Please check whether the value of `HyPiPixelDecoder` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'
