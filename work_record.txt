@@ -107,3 +107,8 @@ backbone_lr=lr*0.1, mIoU=68.12）。
 1.完成Ningbo2m数据集在（50 epoch, AdamW, lr=1e-4, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std；patch_size=4）配置下的训练，mIoU=71.25。
 2.完成Ningbo2m数据集在（50 epoch, AdamW, lr=1e-3, backbone_lr=lr*0.1；全量微调；按照epoch更新；保存最佳mIoU；使用训练集的mean与std；patch_size=8；去除原本的randomRotate增强）配置下的训练，mIoU=73.41（当前qianhe2系列最高，swin-huge最高为73.69）。
 3.借鉴之前训练swin-huge的思路，编写（qianhe2骨干+fpn+upernet）训练配置文件（共设置了6组不同的骨干与解码器学习率组合），训练已拉起，明天出结果。
+
+2026年8月12日
+1.完成昨天6组配置的训练，miou分别是72.90，72.02，72.85，72.88，72.98，73.04。
+2.给dinov3输出的特征图加SE注意力，并完成训练，miou=73.05。
+3.阅读HybirdPixelDecoder论文，并使用代码实现该组件，替换mask2former原本的MSDeformAttnPixelDecoder，并拉起训练，剩余时间10h。
