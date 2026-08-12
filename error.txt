@@ -1,230 +1,222 @@
-"""Dataset and transforms for the Ningbo2m-new semantic segmentation data."""
+custom_imports = dict(
+    imports=[
+        'custom_models.dinov3_backbone',
+        'custom_datasets.ningbo2m_new',
+        'custom_datasets.customPotsdam',
+        'custom_models.dinov3_flexible_patch_backbone',
+        'custom_models.hypi_pixel_decoder',
+    ],
+    allow_failed_imports=False,
+)
 
-from pathlib import Path
+_base_ = ['../mask2former_head.py']
 
-import mmcv
-import numpy as np
-import rasterio
-from mmcv.transforms import BaseTransform
-from mmseg.datasets.basesegdataset import BaseSegDataset
-from mmseg.registry import DATASETS, TRANSFORMS
+randomness = dict(deterministic=False, seed=0)
+find_unused_parameters = True
+default_scope = 'mmseg'
+model_wrapper_cfg = dict(type='MMDistributedDataParallel', find_unused_parameters=True)
+base_learning_rate = 1e-3
+weight_decay = 0.01
+warmup_iters = 1500
+warmup_ratio = 1e-6
+max_epochs = 50
 
+# Paths
+DINO_CKPT = '/mnt/htzzb2/EO_test/weights_form_model_group/stage2+stage3-zhejiang/9999.pth'
+DATA_ROOT = '/mnt/htzzb2/EO_test/datasets/Ningbo-2m_new'
+work_dir = ('/mnt/htzzb2/EO_test/wj1/qh2_work_dirs/'
+            'ningbo2m_new_dinov3_m2f_tune50_50e_512x512')
 
-@TRANSFORMS.register_module()
-class LoadNingbo2mRaster(BaseTransform):
-    """Load paired RGB and mask GeoTIFF files without geospatial transforms.
+img_size = 512
+num_classes = 8
 
-    Rasterio is used only to read raster values. No reprojection, resampling,
-    or geospatial-coordinate operation is performed. Pixels that are white in
-    the RGB image are marked as ignore pixels in the segmentation label.
-    """
+data_preprocessor = dict(
+    type='SegDataPreProcessor',
+    _delete_=True,
+    mean=[73.95853051, 82.62911514, 80.51181812],
+    std=[51.25007138, 41.23240959, 38.55216712],
+    bgr_to_rgb=False,
+    pad_val=0,
+    seg_pad_val=255,
+    size=(img_size, img_size),
+    test_cfg=dict(size_divisor=32),
+)
 
-    def __init__(self, img_size: int = 512, ignore_index: int = 255):
-        self.img_size = img_size
-        self.ignore_index = ignore_index
-
-    def transform(self, results: dict) -> dict:
-        img_path = results['img_path']
-        seg_map_path = results['seg_map_path']
-
-        with rasterio.open(img_path) as src:
-            if src.count < 3:
-                raise ValueError(
-                    f'Ningbo2m-new image must contain at least 3 bands, '
-                    f'but {img_path} contains {src.count}.')
-            img = src.read((1, 2, 3))
-
-        with rasterio.open(seg_map_path) as src:
-            if src.count != 1:
-                raise ValueError(
-                    f'Ningbo2m-new mask must contain exactly 1 band, '
-                    f'but {seg_map_path} contains {src.count}.')
-            gt_seg_map = src.read(1)
-
-        img = np.ascontiguousarray(np.moveaxis(img, 0, -1))
-        gt_seg_map = np.asarray(gt_seg_map, dtype=np.int64)
-
-        image_shape = img.shape[:2]
-        if image_shape != gt_seg_map.shape:
-            raise ValueError(
-                f'Image and mask shapes do not match: {img_path} '
-                f'has {image_shape}, while {seg_map_path} has '
-                f'{gt_seg_map.shape}.')
-        if image_shape != (self.img_size, self.img_size):
-            raise ValueError(
-                f'Ningbo2m-new samples must be {self.img_size}x{self.img_size}, '
-                f'but {img_path} is {image_shape[0]}x{image_shape[1]}.')
-
-        gt_seg_map = gt_seg_map.copy()
-        white_pixels = np.all(img == 255, axis=2)
-        gt_seg_map[white_pixels] = self.ignore_index
-
-        results['img'] = img
-        results['gt_seg_map'] = gt_seg_map
-        results['img_shape'] = image_shape
-        results['ori_shape'] = image_shape
-        results['seg_fields'] = results.get('seg_fields', []) + ['gt_seg_map']
-        return results
-
-
-@TRANSFORMS.register_module()
-class Ningbo2mResizeImageOnly(BaseTransform):
-    """Resize only the image for multi-scale test-time augmentation.
-
-    ``LoadNingbo2mRaster`` loads an image and its segmentation label together.
-    Standard MMSegmentation ``Resize`` consequently resizes both.  That is
-    appropriate for training, but invalid for multi-scale evaluation: model
-    logits are restored to ``ori_shape`` while the resized ground-truth label
-    would remain at the augmented scale.  This transform deliberately changes
-    only the image and its geometric metadata, preserving the original label
-    for correct metric computation after TTA prediction merging.
-    """
-
-    def __init__(
-        self,
-        scale_factor: float,
-        keep_ratio: bool = True,
-        interpolation: str = 'bilinear',
-    ) -> None:
-        if not isinstance(scale_factor, (int, float)) or scale_factor <= 0:
-            raise ValueError(
-                'scale_factor must be a positive number, '
-                f'got {scale_factor!r}.')
-        self.scale_factor = float(scale_factor)
-        self.keep_ratio = bool(keep_ratio)
-        self.interpolation = interpolation
-
-    def transform(self, results: dict) -> dict:
-        image = results.get('img')
-        if image is None:
-            raise KeyError('Ningbo2mResizeImageOnly requires results[\'img\'].')
-        if image.ndim != 3:
-            raise ValueError(
-                'Ningbo2mResizeImageOnly expects an HWC image, '
-                f'got shape {image.shape}.')
-
-        height, width = image.shape[:2]
-        target_height = max(1, int(round(height * self.scale_factor)))
-        target_width = max(1, int(round(width * self.scale_factor)))
-        resized = mmcv.imresize(
-            image,
-            size=(target_width, target_height),
-            interpolation=self.interpolation,
-        )
-
-        width_scale = target_width / width
-        height_scale = target_height / height
-        results['img'] = np.ascontiguousarray(resized)
-        results['img_shape'] = resized.shape[:2]
-        results['pad_shape'] = resized.shape[:2]
-        results['scale_factor'] = np.asarray(
-            [width_scale, height_scale, width_scale, height_scale],
-            dtype=np.float32,
-        )
-        results['keep_ratio'] = self.keep_ratio
-        # Intentionally do not resize results['gt_seg_map'] or any seg_fields.
-        return results
-
-
-@TRANSFORMS.register_module()
-class Ningbo2mNormalize(BaseTransform):
-    """Normalize RGB values while preserving the image-mask pixel alignment."""
-
-    def __init__(self, mean=(0.0, 0.0, 0.0), std=(255.0, 255.0, 255.0)):
-        self.mean = np.asarray(mean, dtype=np.float32)
-        self.std = np.asarray(std, dtype=np.float32)
-        if self.mean.shape != (3,) or self.std.shape != (3,):
-            raise ValueError('mean and std must each contain exactly 3 values.')
-        if np.any(self.std <= 0):
-            raise ValueError('All std values must be positive.')
-
-    def transform(self, results: dict) -> dict:
-        img = results['img'].astype(np.float32)
-        results['img'] = (img - self.mean) / self.std
-        return results
-
-
-@DATASETS.register_module()
-class Ningbo2mNewDataset(BaseSegDataset):
-    """Ningbo2m-new dataset with paired ``images`` and ``masks`` TIFF files."""
-
-    METAINFO = dict(
-        classes=(
-            'background',
-            'grassland',
-            'bareland',
-            'road',
-            'forest',
-            'river',
-            'cropland',
-            'residential',
+model = dict(
+    data_preprocessor=data_preprocessor,
+    backbone=dict(
+        _delete_=True,
+        type='DINOv3BackboneFlexiblePatch',
+        arch='vit_large',
+        patch_size=8,
+        interaction_indexes=[5, 11, 17, 23],
+        n_storage_tokens=4,
+        layerscale_init=1e-5,
+        mask_k_bias=True,
+        img_size=img_size,
+        checkpoint=DINO_CKPT,
+        freeze_backbone=False,
+        finetune_vit=True,
+    ),
+    decode_head=dict(
+        in_channels=[1024, 1024, 1024, 1024],
+        strides=[4, 8, 16, 32],
+        num_classes=num_classes,
+        num_queries=50,
+        pixel_decoder=dict(
+            type='HyPiPixelDecoder',
+            encoder=dict(num_layers=3),
+            attn_num_layers=3,
+            hybrid_num_layers=3,
+            csp_num_blocks=3,
+            csp_expand_ratio=0.5,
         ),
-        palette=(
-            [0, 0, 0],
-            [0, 255, 0],
-            [210, 180, 140],
-            [128, 128, 128],
-            [0, 100, 0],
-            [0, 0, 255],
-            [255, 255, 0],
-            [255, 0, 0],
+        loss_cls=dict(
+            type='mmdet.CrossEntropyLoss',
+            use_sigmoid=False,
+            loss_weight=2.0,
+            reduction='mean',
+            class_weight=[1.0] * (num_classes + 1),
         ),
-    )
+    ),
+)
 
-    _VALID_SUFFIXES = ('.tif', '.tiff')
+train_pipeline = [
+    dict(type='LoadNingbo2mRaster', img_size=img_size),
+    dict(type='RandomFlip', prob=0.5, direction='horizontal'),
+    dict(type='RandomFlip', prob=0.5, direction='vertical'),
+    dict(type='RandomCrop', crop_size=(img_size, img_size), cat_max_ratio=1.0),
+    dict(type='PackSegInputs'),
+]
+val_pipeline = [
+    dict(type='LoadNingbo2mRaster', img_size=img_size),
+    dict(type='PackSegInputs'),
+]
 
-    def __init__(self, data_root: str, split: str = 'train', pipeline=None,
-                 **kwargs):
-        self._custom_root = Path(data_root)
-        self._split = split
-        super().__init__(
-            data_root=data_root,
-            ann_file='',
-            img_suffix='.tif',
-            seg_map_suffix='.tif',
-            pipeline=pipeline,
-            **kwargs)
+train_dataloader = dict(
+    _delete_=True,
+    batch_size=8,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=True),
+    dataset=dict(
+        type='Ningbo2mNewDataset',
+        data_root=DATA_ROOT,
+        split='train',
+        pipeline=train_pipeline,
+    ),
+)
+val_dataloader = dict(
+    _delete_=True,
+    batch_size=8,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
+        type='Ningbo2mNewDataset',
+        data_root=DATA_ROOT,
+        split='val',
+        pipeline=val_pipeline,
+    ),
+)
+test_dataloader = dict(
+    _delete_=True,
+    batch_size=8,
+    num_workers=4,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
+        type='Ningbo2mNewDataset',
+        data_root=DATA_ROOT,
+        split='val',
+        pipeline=val_pipeline,
+    ),
+)
 
-    @classmethod
-    def _is_tiff(cls, path: Path) -> bool:
-        return path.is_file() and path.suffix.lower() in cls._VALID_SUFFIXES
+val_evaluator = dict(type='IoUMetric', iou_metrics=['mIoU', 'mFscore'], _delete_=True)
+test_evaluator = val_evaluator
 
-    def _mask_path_for(self, image_path: Path, image_dir: Path,
-                       mask_dir: Path) -> Path:
-        relative_path = image_path.relative_to(image_dir)
-        candidate_stems = (
-            relative_path.with_suffix('.tif'),
-            relative_path.with_suffix('.tiff'),
-        )
-        for relative_mask_path in candidate_stems:
-            mask_path = mask_dir / relative_mask_path
-            if mask_path.is_file():
-                return mask_path
-        raise FileNotFoundError(
-            f'No matching TIFF mask was found for {image_path}. Expected one '
-            f'of: {", ".join(str(mask_dir / path) for path in candidate_stems)}')
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(type='AdamW', lr=base_learning_rate, weight_decay=weight_decay),
+    paramwise_cfg=dict(
+        custom_keys=dict(backbone=dict(lr_mult=0.1)),
+        norm_decay_mult=0.0,
+    ),
+    clip_grad=dict(max_norm=1, norm_type=2),
+)
+param_scheduler = [
+    dict(
+        type='LinearLR',
+        start_factor=warmup_ratio,
+        by_epoch=False,
+        begin=0,
+        end=warmup_iters,
+    ),
+    dict(
+        type='PolyLR',
+        eta_min=0.0,
+        power=1.0,
+        begin=0,
+        end=max_epochs,
+        by_epoch=True,
+        convert_to_iter_based=True,
+    ),
+]
 
-    def load_data_list(self) -> list:
-        split_root = self._custom_root / self._split
-        image_dir = split_root / 'images'
-        mask_dir = split_root / 'masks'
-        if not image_dir.is_dir() or not mask_dir.is_dir():
-            raise FileNotFoundError(
-                f'Expected Ningbo2m-new directories {image_dir} and {mask_dir}.')
+train_cfg = dict(type='EpochBasedTrainLoop', max_epochs=max_epochs, val_interval=1)
+val_cfg = dict(type='ValLoop')
+test_cfg = dict(type='TestLoop')
 
-        image_paths = sorted(path for path in image_dir.rglob('*')
-                             if self._is_tiff(path))
-        if not image_paths:
-            raise FileNotFoundError(f'No TIFF images were found in {image_dir}.')
+custom_hooks = []
 
-        data_list = []
-        for image_path in image_paths:
-            mask_path = self._mask_path_for(image_path, image_dir, mask_dir)
-            data_list.append(dict(
-                img_path=str(image_path),
-                seg_map_path=str(mask_path),
-                label_map=self.label_map,
-                reduce_zero_label=self.reduce_zero_label,
-                seg_fields=[],
-            ))
-        return data_list
+default_hooks = dict(
+    timer=dict(type='IterTimerHook'),
+    logger=dict(type='LoggerHook', interval=50, log_metric_by_epoch=True),
+    param_scheduler=dict(type='ParamSchedulerHook'),
+    checkpoint=dict(
+        type='CheckpointHook',
+        by_epoch=True,
+        interval=1,
+        save_best='mIoU',
+        rule='greater',
+        max_keep_ckpts=3,
+    ),
+    sampler_seed=dict(type='DistSamplerSeedHook'),
+    visualization=dict(type='SegVisualizationHook'),
+)
+
+env_cfg = dict(
+    cudnn_benchmark=True,
+    mp_cfg=dict(mp_start_method='fork', opencv_num_threads=0),
+    dist_cfg=dict(backend='nccl'),
+)
+vis_backends = [dict(type='LocalVisBackend')]
+visualizer = dict(type='SegLocalVisualizer', vis_backends=vis_backends, name='visualizer')
+log_processor = dict(by_epoch=True)
+log_level = 'INFO'
+load_from = None
+resume = False
+
+
+# 测试时增强，推理脚本执行时，额外增加 "--tta" 参数
+tta_model = dict(type='SegTTAModel')
+# tta_scales = [0.75, 1.0]  # 73.46
+# tta_scales = [1.0, 1.25]  # 
+# tta_scales = [0.75, 1.0, 1.25]
+# 增加多尺度会降miou
+tta_pipeline = [
+    dict(type='LoadNingbo2mRaster', img_size=img_size),
+    dict(
+        type='TestTimeAug',
+        transforms=[
+            #[
+            #    dict(type='Ningbo2mResizeImageOnly', scale_factor=scale, keep_ratio=True)
+            #    for scale in tta_scales
+            #],
+            [
+                dict(type='RandomFlip', prob=0.0, direction='horizontal'),  # 73.46
+                dict(type='RandomFlip', prob=1.0, direction='horizontal'),  # 73.66
+                dict(type='RandomFlip', prob=1.0, direction='vertical'),  # 73.83
+            ],
+            [dict(type='PackSegInputs')],
+        ],
+    ),
+]
