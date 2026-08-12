@@ -1,24 +1,42 @@
 Traceback (most recent call last):
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 104, in <module>
-[rank3]:     main()
-[rank3]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/train.py", line 93, in main
-[rank3]:     runner = Runner.from_cfg(cfg)
-[rank3]:              ^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 462, in from_cfg
-[rank3]:     runner = cls(
-[rank3]:              ^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 442, in __init__
-[rank3]:     self.register_hooks(default_hooks, custom_hooks)
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1995, in register_hooks
-[rank3]:     self.register_custom_hooks(custom_hooks)
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1976, in register_custom_hooks
-[rank3]:     self.register_hook(hook)
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1877, in register_hook
-[rank3]:     hook_obj = HOOKS.build(hook)
-[rank3]:                ^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/registry.py", line 570, in build
-[rank3]:     return self.build_func(cfg, *args, **kwargs, registry=self)
-[rank3]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-[rank3]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/registry/build_functions.py", line 100, in build_from_cfg
-[rank3]:     raise KeyError(
-[rank3]: KeyError: 'EMAHOOK is not in the mmseg::hook registry. Please check whether the value of `EMAHOOK` is correct or it was registered as expected. More details can be found at https://mmengine.readthedocs.io/en/latest/advanced_tutorials/config.html#import-the-custom-module'
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_2m/projects/DINOv3/../../mmseg_tools/test.py", line 123, in <module>
+[rank7]:     main()
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_2m/projects/DINOv3/../../mmseg_tools/test.py", line 119, in main
+[rank7]:     runner.test()
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1823, in test
+[rank7]:     metrics = self.test_loop.run()  # type: ignore
+[rank7]:               ^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 463, in run
+[rank7]:     self.run_iter(idx, data_batch)
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+[rank7]:     return func(*args, **kwargs)
+[rank7]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 491, in run_iter
+[rank7]:     self.evaluator.process(data_samples=outputs, data_batch=data_batch)
+[rank7]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/evaluator/evaluator.py", line 60, in process
+[rank7]:     metric.process(data_batch, _data_samples)
+[rank7]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 82, in process
+[rank7]:     label = data_sample['gt_sem_seg']['data'].squeeze().to(
+[rank7]:             ~~~~~~~~~~~^^^^^^^^^^^^^^
+[rank7]: KeyError: 'gt_sem_seg'
+[rank6]: Traceback (most recent call last):
+[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_2m/projects/DINOv3/../../mmseg_tools/test.py", line 123, in <module>
+[rank6]:     main()
+[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_2m/projects/DINOv3/../../mmseg_tools/test.py", line 119, in main
+[rank6]:     runner.test()
+[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1823, in test
+[rank6]:     metrics = self.test_loop.run()  # type: ignore
+[rank6]:               ^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 463, in run
+[rank6]:     self.run_iter(idx, data_batch)
+[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+[rank6]:     return func(*args, **kwargs)
+[rank6]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 491, in run_iter
+[rank6]:     self.evaluator.process(data_samples=outputs, data_batch=data_batch)
+[rank6]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/evaluator/evaluator.py", line 60, in process
+[rank6]:     metric.process(data_batch, _data_samples)
+[rank6]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 82, in process
+[rank6]:     label = data_sample['gt_sem_seg']['data'].squeeze().to(
+[rank6]:             ~~~~~~~~~~~^^^^^^^^^^^^^^
+[rank6]: KeyError: 'gt_sem_seg'
