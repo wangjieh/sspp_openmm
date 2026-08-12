@@ -1,46 +1,230 @@
-Traceback (most recent call last):
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 123, in <module>
-[rank0]:     main()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 119, in main
-[rank0]:     runner.test()
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1823, in test
-[rank0]:     metrics = self.test_loop.run()  # type: ignore
-[rank0]:               ^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 463, in run
-[rank0]:     self.run_iter(idx, data_batch)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
-[rank0]:     return func(*args, **kwargs)
-[rank0]:            ^^^^^^^^^^^^^^^^^^^^^
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 491, in run_iter
-[rank0]:     self.evaluator.process(data_samples=outputs, data_batch=data_batch)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/evaluator/evaluator.py", line 60, in process
-[rank0]:     metric.process(data_batch, _data_samples)
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 85, in process
-[rank0]:     self.intersect_and_union(pred_label, label, num_classes,
-[rank0]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 186, in intersect_and_union
-[rank0]:     pred_label = pred_label[mask]
-[rank0]:                  ~~~~~~~~~~^^^^^^
-[rank0]: IndexError: The shape of the mask [384, 384] at index 0 does not match the shape of the indexed tensor [512, 512] at index 0
-[rank4]: Traceback (most recent call last):
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 123, in <module>
-[rank4]:     main()
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg-moxingzu/mmseg_tools/test.py", line 119, in main
-[rank4]:     runner.test()
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/runner.py", line 1823, in test
-[rank4]:     metrics = self.test_loop.run()  # type: ignore
-[rank4]:               ^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 463, in run
-[rank4]:     self.run_iter(idx, data_batch)
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
-[rank4]:     return func(*args, **kwargs)
-[rank4]:            ^^^^^^^^^^^^^^^^^^^^^
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/runner/loops.py", line 491, in run_iter
-[rank4]:     self.evaluator.process(data_samples=outputs, data_batch=data_batch)
-[rank4]:   File "/mnt/ht2-nas2/EO_test/miniconda3/envs/www/lib/python3.12/site-packages/mmengine/evaluator/evaluator.py", line 60, in process
-[rank4]:     metric.process(data_batch, _data_samples)
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 85, in process
-[rank4]:     self.intersect_and_union(pred_label, label, num_classes,
-[rank4]:   File "/mnt/ht2-nas2/EO_test/wj1/mm_series/mmseg_olmoearth_new/mmseg/evaluation/metrics/iou_metric.py", line 186, in intersect_and_union
-[rank4]:     pred_label = pred_label[mask]
-[rank4]:                  ~~~~~~~~~~^^^^^^
-[rank4]: IndexError: The shape of the mask [384, 384] at index 0 does not match the shape of the indexed tensor [512, 512] at index 0
+"""Dataset and transforms for the Ningbo2m-new semantic segmentation data."""
+
+from pathlib import Path
+
+import mmcv
+import numpy as np
+import rasterio
+from mmcv.transforms import BaseTransform
+from mmseg.datasets.basesegdataset import BaseSegDataset
+from mmseg.registry import DATASETS, TRANSFORMS
+
+
+@TRANSFORMS.register_module()
+class LoadNingbo2mRaster(BaseTransform):
+    """Load paired RGB and mask GeoTIFF files without geospatial transforms.
+
+    Rasterio is used only to read raster values. No reprojection, resampling,
+    or geospatial-coordinate operation is performed. Pixels that are white in
+    the RGB image are marked as ignore pixels in the segmentation label.
+    """
+
+    def __init__(self, img_size: int = 512, ignore_index: int = 255):
+        self.img_size = img_size
+        self.ignore_index = ignore_index
+
+    def transform(self, results: dict) -> dict:
+        img_path = results['img_path']
+        seg_map_path = results['seg_map_path']
+
+        with rasterio.open(img_path) as src:
+            if src.count < 3:
+                raise ValueError(
+                    f'Ningbo2m-new image must contain at least 3 bands, '
+                    f'but {img_path} contains {src.count}.')
+            img = src.read((1, 2, 3))
+
+        with rasterio.open(seg_map_path) as src:
+            if src.count != 1:
+                raise ValueError(
+                    f'Ningbo2m-new mask must contain exactly 1 band, '
+                    f'but {seg_map_path} contains {src.count}.')
+            gt_seg_map = src.read(1)
+
+        img = np.ascontiguousarray(np.moveaxis(img, 0, -1))
+        gt_seg_map = np.asarray(gt_seg_map, dtype=np.int64)
+
+        image_shape = img.shape[:2]
+        if image_shape != gt_seg_map.shape:
+            raise ValueError(
+                f'Image and mask shapes do not match: {img_path} '
+                f'has {image_shape}, while {seg_map_path} has '
+                f'{gt_seg_map.shape}.')
+        if image_shape != (self.img_size, self.img_size):
+            raise ValueError(
+                f'Ningbo2m-new samples must be {self.img_size}x{self.img_size}, '
+                f'but {img_path} is {image_shape[0]}x{image_shape[1]}.')
+
+        gt_seg_map = gt_seg_map.copy()
+        white_pixels = np.all(img == 255, axis=2)
+        gt_seg_map[white_pixels] = self.ignore_index
+
+        results['img'] = img
+        results['gt_seg_map'] = gt_seg_map
+        results['img_shape'] = image_shape
+        results['ori_shape'] = image_shape
+        results['seg_fields'] = results.get('seg_fields', []) + ['gt_seg_map']
+        return results
+
+
+@TRANSFORMS.register_module()
+class Ningbo2mResizeImageOnly(BaseTransform):
+    """Resize only the image for multi-scale test-time augmentation.
+
+    ``LoadNingbo2mRaster`` loads an image and its segmentation label together.
+    Standard MMSegmentation ``Resize`` consequently resizes both.  That is
+    appropriate for training, but invalid for multi-scale evaluation: model
+    logits are restored to ``ori_shape`` while the resized ground-truth label
+    would remain at the augmented scale.  This transform deliberately changes
+    only the image and its geometric metadata, preserving the original label
+    for correct metric computation after TTA prediction merging.
+    """
+
+    def __init__(
+        self,
+        scale_factor: float,
+        keep_ratio: bool = True,
+        interpolation: str = 'bilinear',
+    ) -> None:
+        if not isinstance(scale_factor, (int, float)) or scale_factor <= 0:
+            raise ValueError(
+                'scale_factor must be a positive number, '
+                f'got {scale_factor!r}.')
+        self.scale_factor = float(scale_factor)
+        self.keep_ratio = bool(keep_ratio)
+        self.interpolation = interpolation
+
+    def transform(self, results: dict) -> dict:
+        image = results.get('img')
+        if image is None:
+            raise KeyError('Ningbo2mResizeImageOnly requires results[\'img\'].')
+        if image.ndim != 3:
+            raise ValueError(
+                'Ningbo2mResizeImageOnly expects an HWC image, '
+                f'got shape {image.shape}.')
+
+        height, width = image.shape[:2]
+        target_height = max(1, int(round(height * self.scale_factor)))
+        target_width = max(1, int(round(width * self.scale_factor)))
+        resized = mmcv.imresize(
+            image,
+            size=(target_width, target_height),
+            interpolation=self.interpolation,
+        )
+
+        width_scale = target_width / width
+        height_scale = target_height / height
+        results['img'] = np.ascontiguousarray(resized)
+        results['img_shape'] = resized.shape[:2]
+        results['pad_shape'] = resized.shape[:2]
+        results['scale_factor'] = np.asarray(
+            [width_scale, height_scale, width_scale, height_scale],
+            dtype=np.float32,
+        )
+        results['keep_ratio'] = self.keep_ratio
+        # Intentionally do not resize results['gt_seg_map'] or any seg_fields.
+        return results
+
+
+@TRANSFORMS.register_module()
+class Ningbo2mNormalize(BaseTransform):
+    """Normalize RGB values while preserving the image-mask pixel alignment."""
+
+    def __init__(self, mean=(0.0, 0.0, 0.0), std=(255.0, 255.0, 255.0)):
+        self.mean = np.asarray(mean, dtype=np.float32)
+        self.std = np.asarray(std, dtype=np.float32)
+        if self.mean.shape != (3,) or self.std.shape != (3,):
+            raise ValueError('mean and std must each contain exactly 3 values.')
+        if np.any(self.std <= 0):
+            raise ValueError('All std values must be positive.')
+
+    def transform(self, results: dict) -> dict:
+        img = results['img'].astype(np.float32)
+        results['img'] = (img - self.mean) / self.std
+        return results
+
+
+@DATASETS.register_module()
+class Ningbo2mNewDataset(BaseSegDataset):
+    """Ningbo2m-new dataset with paired ``images`` and ``masks`` TIFF files."""
+
+    METAINFO = dict(
+        classes=(
+            'background',
+            'grassland',
+            'bareland',
+            'road',
+            'forest',
+            'river',
+            'cropland',
+            'residential',
+        ),
+        palette=(
+            [0, 0, 0],
+            [0, 255, 0],
+            [210, 180, 140],
+            [128, 128, 128],
+            [0, 100, 0],
+            [0, 0, 255],
+            [255, 255, 0],
+            [255, 0, 0],
+        ),
+    )
+
+    _VALID_SUFFIXES = ('.tif', '.tiff')
+
+    def __init__(self, data_root: str, split: str = 'train', pipeline=None,
+                 **kwargs):
+        self._custom_root = Path(data_root)
+        self._split = split
+        super().__init__(
+            data_root=data_root,
+            ann_file='',
+            img_suffix='.tif',
+            seg_map_suffix='.tif',
+            pipeline=pipeline,
+            **kwargs)
+
+    @classmethod
+    def _is_tiff(cls, path: Path) -> bool:
+        return path.is_file() and path.suffix.lower() in cls._VALID_SUFFIXES
+
+    def _mask_path_for(self, image_path: Path, image_dir: Path,
+                       mask_dir: Path) -> Path:
+        relative_path = image_path.relative_to(image_dir)
+        candidate_stems = (
+            relative_path.with_suffix('.tif'),
+            relative_path.with_suffix('.tiff'),
+        )
+        for relative_mask_path in candidate_stems:
+            mask_path = mask_dir / relative_mask_path
+            if mask_path.is_file():
+                return mask_path
+        raise FileNotFoundError(
+            f'No matching TIFF mask was found for {image_path}. Expected one '
+            f'of: {", ".join(str(mask_dir / path) for path in candidate_stems)}')
+
+    def load_data_list(self) -> list:
+        split_root = self._custom_root / self._split
+        image_dir = split_root / 'images'
+        mask_dir = split_root / 'masks'
+        if not image_dir.is_dir() or not mask_dir.is_dir():
+            raise FileNotFoundError(
+                f'Expected Ningbo2m-new directories {image_dir} and {mask_dir}.')
+
+        image_paths = sorted(path for path in image_dir.rglob('*')
+                             if self._is_tiff(path))
+        if not image_paths:
+            raise FileNotFoundError(f'No TIFF images were found in {image_dir}.')
+
+        data_list = []
+        for image_path in image_paths:
+            mask_path = self._mask_path_for(image_path, image_dir, mask_dir)
+            data_list.append(dict(
+                img_path=str(image_path),
+                seg_map_path=str(mask_path),
+                label_map=self.label_map,
+                reduce_zero_label=self.reduce_zero_label,
+                seg_fields=[],
+            ))
+        return data_list
