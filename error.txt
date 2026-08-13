@@ -1,42 +1,43 @@
-custom_imports = dict(
-    imports=[
-        'custom_models.dinov3_backbone',
-        'custom_datasets.ningbo2m_new',
-        'custom_datasets.customPotsdam',
-        'custom_models.dinov3_flexible_patch_backbone',
-        'custom_models.hypi_pixel_decoder',
+auxiliary_head=dict(
+        type='FCNHead',
 
-        # 新增
-        'custom_models.coordinate_attention_neck',
-    ],
-    allow_failed_imports=False,
-)
+        # F1: stride=4
+        in_channels=1024,
+        in_index=0,
 
+        channels=256,
+        num_convs=1,
+        concat_input=False,
 
-neck=dict(
-        type='CoordinateAttentionNeck',
+        dropout_ratio=0.1,
 
-        in_channels=[
-            1024,
-            1024,
-            1024,
-            1024,
-        ],
+        num_classes=num_classes,
 
-        # 第一组实验：只增强 F1 / F2
-        apply_levels=(0, 1),
+        norm_cfg=dict(
+            type='SyncBN',
+            requires_grad=True,
+        ),
 
-        reduction=32,
+        align_corners=False,
 
-        min_channels=8,
+        # ========================================================
+        # Hard Pixel Mining
+        # ========================================================
+        sampler=dict(
+            type='OHEMPixelSampler',
 
-        residual=True,
+            # GT confidence < 0.7 优先训练
+            thresh=0.7,
 
-        gamma_init=1e-3,
+            # 512×512 的约 25%
+            min_kept=65536,
+        ),
+
+        loss_decode=dict(
+            type='CrossEntropyLoss',
+            use_sigmoid=False,
+
+            # 不让 auxiliary loss 压过 Mask2Former
+            loss_weight=0.3,
+        ),
     ),
-
-
-
-neck=dict(
-                lr_mult=1.0
-            ),
